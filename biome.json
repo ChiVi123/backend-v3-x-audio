@@ -1,56 +1,70 @@
 {
-	"$schema": "https://biomejs.dev/schemas/2.4.10/schema.json",
-	"vcs": {
-		"enabled": true,
-		"clientKind": "git",
-		"useIgnoreFile": true
-	},
-	"files": {
-		"ignoreUnknown": false,
-		"includes": ["**", "!node_modules", "!dist", "!build"]
-	},
-	"formatter": {
-		"enabled": true,
-		"indentStyle": "space",
-		"indentWidth": 2,
-		"lineWidth": 120
-	},
-	"linter": {
-		"enabled": true,
-		"rules": {
-			"recommended": true,
-			"correctness": {
-				"noUnusedVariables": "warn"
-			},
-			"style": {
-				"useImportType": "error",
-				"useNamingConvention": {
-					"level": "warn",
-					"options": {
-						"strictCase": false
-					}
-				}
-			},
-			"complexity": {
-				"noBannedTypes": "off"
-			}
-		}
-	},
-	"javascript": {
-		"formatter": {
-			"quoteStyle": "single",
-			"semicolons": "always"
-		},
-		"parser": {
-			"unsafeParameterDecoratorsEnabled": true
-		}
-	},
-	"assist": {
-		"enabled": true,
-		"actions": {
-			"source": {
-				"organizeImports": "on"
-			}
-		}
-	}
+  "$schema": "https://biomejs.dev/schemas/2.4.10/schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "files": {
+    "ignoreUnknown": false,
+    "includes": ["**", "!node_modules", "!dist", "!build"]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 120
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "correctness": {
+        "noUnusedVariables": "warn"
+      },
+      "style": {
+        "useImportType": "error",
+        "useNamingConvention": {
+          "level": "warn",
+          "options": {
+            "strictCase": false,
+            "conventions": [
+              {
+                "selector": {
+                  "kind": "variable"
+                },
+                "formats": ["camelCase", "snake_case"]
+              },
+              {
+                "selector": {
+                  "kind": "classMember"
+                },
+                "formats": ["camelCase", "CONSTANT_CASE"]
+              }
+            ]
+          }
+        }
+      },
+      "complexity": {
+        "noBannedTypes": "off"
+      }
+    }
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single",
+      "semicolons": "always"
+    },
+    "parser": {
+      "unsafeParameterDecoratorsEnabled": true
+    }
+  },
+  "assist": {
+    "enabled": true,
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
+  }
 }
