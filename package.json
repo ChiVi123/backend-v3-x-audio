@@ -14,7 +14,12 @@
     "test": "cross-env NODE_ENV=test bun test",
     "test:watch": "cross-env NODE_ENV=test bun test --watch",
     "test:cov": "cross-env NODE_ENV=test bun test --coverage",
-    "test:e2e": "cross-env NODE_ENV=test bun test ./test/*.e2e-spec.ts"
+    "test:e2e": "cross-env NODE_ENV=test bun test ./test/*.e2e-spec.ts",
+    "db:generate": "drizzle-kit generate --config=drizzle.config.ts",
+    "db:migrate": "drizzle-kit migrate --config=drizzle.config.ts",
+    "db:push": "drizzle-kit push --config=drizzle.config.ts",
+    "db:studio": "drizzle-kit studio --config=drizzle.config.ts",
+    "db:seed": "cross-env NODE_ENV=development bun run scripts/seed.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

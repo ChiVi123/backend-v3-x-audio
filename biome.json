@@ -33,7 +33,7 @@
                 "selector": {
                   "kind": "variable"
                 },
-                "formats": ["camelCase", "snake_case"]
+                "formats": ["camelCase", "snake_case", "CONSTANT_CASE", "PascalCase"]
               },
               {
                 "selector": {
