@@ -1,14 +1,15 @@
-import { Inject } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { and, eq } from 'drizzle-orm';
 // biome-ignore lint/style/useImportType: NestJS requires importing the class itself, not just its type
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { DRIZZLE_TOKEN } from '~/constants/provider-tokens';
-import type { Product, ProductWithArrayImage, ProductWithSingleImage } from '~/core/domain/product.entity';
+import type { Product, ProductWithArrayImage, ProductWithSingleImage } from '~/core/entities/product.entity';
 import type { ProductRepository } from '~/core/repositories/product.repository';
 import type { CategoryId, ProductId } from '~/core/types/branded.type';
+import { DRIZZLE_TOKEN } from '~/infrastructure/constants/provider-tokens';
 import type { DrizzleDB } from '~/infrastructure/database/drizzle.provider';
 import { imageTable, productImageTable, productTable } from '~/infrastructure/database/schemas';
 
+@Injectable()
 export class DrizzleProductRepository implements ProductRepository {
   constructor(@Inject(DRIZZLE_TOKEN) private readonly db: NodePgDatabase<DrizzleDB>) {}
 

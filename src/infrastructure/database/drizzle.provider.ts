@@ -1,7 +1,7 @@
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
-import { DRIZZLE_TOKEN } from '~/constants/provider-tokens';
-import * as schema from './schemas';
+import { DRIZZLE_TOKEN } from '~/infrastructure/constants/provider-tokens';
+import * as schema from '~/infrastructure/database/schemas';
 
 export const DrizzleProvider = {
   provide: DRIZZLE_TOKEN,

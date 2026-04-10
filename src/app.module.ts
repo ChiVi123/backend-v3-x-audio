@@ -1,8 +1,9 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { validate } from '~/validations/env.validation';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
+import { AppController } from '~/app.controller';
+import { AppService } from '~/app.service';
+import { DatabaseModule } from '~/infrastructure/database/drizzle.module';
+import { validate } from '~/infrastructure/validations/env.validation';
 
 @Module({
   imports: [
@@ -11,6 +12,7 @@ import { AppService } from './app.service';
       isGlobal: true,
       validate,
     }),
+    DatabaseModule,
   ],
   controllers: [AppController],
   providers: [AppService],

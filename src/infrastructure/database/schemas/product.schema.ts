@@ -1,5 +1,5 @@
 import { integer, jsonb, pgTable, uuid, varchar } from 'drizzle-orm/pg-core';
-import type { ProductSpecs } from '~/core/domain/product.entity';
+import type { ProductSpecs } from '~/core/entities/product.entity';
 import type { ProductId, Usd } from '~/core/types/branded.type';
 import { timestamps } from '~/infrastructure/database/schemas/base.schema';
 import { categoryTable } from '~/infrastructure/database/schemas/category.schema';

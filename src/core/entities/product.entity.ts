@@ -1,4 +1,4 @@
-import type { Image } from '~/core/domain/image.entity';
+import type { Image } from '~/core/entities/image.entity';
 import type { CategoryId, Decibel, Hertz, Ohm, ProductId, Usd } from '~/core/types/branded.type';
 import type { DriverType } from '~/core/types/product.type';
 

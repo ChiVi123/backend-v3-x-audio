@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 // biome-ignore lint/style/useImportType: NestJS requires importing the class itself, not just its type
 import { ConfigService } from '@nestjs/config';
-import type { EnvironmentVariables } from '~/validations/env.validation';
+import type { EnvironmentVariables } from '~/infrastructure/validations/env.validation';
 
 @Injectable()
 export class AppService {
