@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { AppController } from '~/app.controller';
 import { AppService } from '~/app.service';
 import { DatabaseModule } from '~/infrastructure/database/drizzle.module';
+import { MediaModule } from '~/infrastructure/services/media/media.module';
 import { validate } from '~/infrastructure/validations/env.validation';
 
 @Module({
@@ -13,6 +14,7 @@ import { validate } from '~/infrastructure/validations/env.validation';
       validate,
     }),
     DatabaseModule,
+    MediaModule,
   ],
   controllers: [AppController],
   providers: [AppService],

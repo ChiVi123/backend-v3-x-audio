@@ -1,7 +1,9 @@
 import type { Category } from '~/core/entities/category.entity';
 import type { CategoryId } from '~/core/types/branded.type';
 
-export interface CategoryRepository {
-  findAll(): Promise<Category[]>;
-  findSubCategories(parentId: CategoryId): Promise<Category[]>;
+export abstract class CategoryRepository {
+  abstract findAll(): Promise<Category[]>;
+  abstract findById(id: CategoryId): Promise<Category | null>;
+  abstract findSubCategories(parentId: CategoryId): Promise<Category[]>;
+  abstract existsById(id: CategoryId): Promise<boolean>;
 }

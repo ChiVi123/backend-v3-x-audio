@@ -1,5 +1,5 @@
 import { plainToInstance } from 'class-transformer';
-import { IsEnum, IsNumber, Max, Min, validateSync } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsNumber, IsString, Max, Min, validateSync } from 'class-validator';
 
 enum Environment {
   Development = 'development',
@@ -16,6 +16,22 @@ export class EnvironmentVariables {
   @Min(0)
   @Max(65535)
   PORT: number;
+
+  @IsString()
+  @IsNotEmpty()
+  CLOUDINARY_CLOUD_NAME: string;
+
+  @IsString()
+  @IsNotEmpty()
+  CLOUDINARY_API_KEY: string;
+
+  @IsString()
+  @IsNotEmpty()
+  CLOUDINARY_API_SECRET: string;
+
+  @IsString()
+  @IsNotEmpty()
+  CLOUDINARY_BASE_FOLDER: string;
 }
 
 export function validate(config: Record<string, unknown>) {

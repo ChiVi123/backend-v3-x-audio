@@ -24,6 +24,7 @@
       },
       "style": {
         "useImportType": "error",
+        "noNonNullAssertion": "off",
         "useNamingConvention": {
           "level": "warn",
           "options": {
@@ -40,6 +41,10 @@
                   "kind": "classMember"
                 },
                 "formats": ["camelCase", "CONSTANT_CASE"]
+              },
+              {
+                "selector": { "kind": "objectLiteralProperty" },
+                "formats": ["camelCase", "snake_case"]
               }
             ]
           }

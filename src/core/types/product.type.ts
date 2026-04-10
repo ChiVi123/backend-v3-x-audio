@@ -1,1 +1,6 @@
-export type DriverType = 'Dynamic' | 'Planar' | 'Electrostatic' | 'Balanced Armature';
+export enum DriverType {
+  Dynamic = 'Dynamic',
+  Planar = 'Planar',
+  Electrostatic = 'Electrostatic',
+  BalancedArmature = 'Balanced Armature',
+}

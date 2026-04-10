@@ -17,6 +17,7 @@ export interface Product {
   name: string;
   slug: string;
   categoryId: CategoryId;
+  description: string;
   price: Usd;
   stock: number;
   specs: ProductSpecs;
