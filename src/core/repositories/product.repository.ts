@@ -1,17 +1,23 @@
 import type { Image } from '~/core/entities/image.entity';
-import type { Product, ProductWithArrayImage, ProductWithSingleImage } from '~/core/entities/product.entity';
+import type {
+  Product,
+  ProductStatus,
+  ProductWithArrayImage,
+  ProductWithSingleImage,
+} from '~/core/entities/product.entity';
 import type { CategoryId, ImageId, ProductId } from '~/core/types/branded.type';
 
-export type SaveProductInput = Product & {
+// Remove system-generated fields when saving
+export type SaveProductInput = Omit<Product, 'createdAt' | 'updatedAt'> & {
   images: Array<Pick<Image, 'url' | 'publicId'> & Partial<Image> & { isPrimary: boolean }>;
+  status?: ProductStatus;
+  aiGenerated?: boolean;
 };
 
 export type UpdateProductInput = Partial<Omit<Product, 'id' | 'createdAt' | 'updatedAt'>> & {
-  // Ảnh cũ giữ lại và cập nhật trạng thái
+  status?: ProductStatus;
   keepImages?: Array<{ id: ImageId; isPrimary: boolean }>;
-  // Ảnh mới hoàn toàn
   newImages?: Array<Pick<Image, 'url' | 'publicId'> & Partial<Image> & { isPrimary: boolean }>;
-  // Danh sách ID ảnh cần xóa khỏi DB
   deleteImageIds?: ImageId[];
 };
 

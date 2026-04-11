@@ -1,11 +1,11 @@
 import { plainToInstance } from 'class-transformer';
-import { IsEnum, IsNotEmpty, IsNumber, IsString, Max, Min, validateSync } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsNumber, IsString, IsUrl, Max, Min, validateSync } from 'class-validator';
 
 enum Environment {
-  Development = 'development',
-  Production = 'production',
-  Test = 'test',
-  Provision = 'provision',
+  DEVELOPMENT = 'development',
+  PRODUCTION = 'production',
+  TEST = 'test',
+  PROVISION = 'provision',
 }
 
 export class EnvironmentVariables {
@@ -16,6 +16,10 @@ export class EnvironmentVariables {
   @Min(0)
   @Max(65535)
   PORT: number;
+
+  @IsUrl()
+  @IsNotEmpty()
+  IMAGE_PRODUCT_PLACEHOLDER_URL: string;
 
   @IsString()
   @IsNotEmpty()

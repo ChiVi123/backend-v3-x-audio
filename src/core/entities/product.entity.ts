@@ -12,6 +12,12 @@ export interface ProductSpecs {
   driverType: DriverType;
 }
 
+export enum ProductStatus {
+  DRAFT = 'draft',
+  LIVE = 'live',
+  ARCHIVED = 'archived',
+}
+
 export interface Product {
   id: ProductId;
   name: string;
@@ -23,6 +29,8 @@ export interface Product {
   specs: ProductSpecs;
   frGraphData: [number, number][]; // Coordinates [x, y] for D3.js
   threeModelId?: string;
+  status: ProductStatus;
+  aiGenerated: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

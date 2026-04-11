@@ -1,11 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import slugify from 'slugify';
 import type { UpdateProductDto } from '~/applications/dtos/update-product.dto';
-// biome-ignore lint/style/useImportType: NestJS injects dependencies
-import { CategoryRepository } from '~/core/repositories/category.repository';
-// biome-ignore lint/style/useImportType: NestJS injects dependencies
+import { ProductStatus } from '~/core/entities/product.entity';
+// biome-ignore lint/style/useImportType: NestJS requires importing the class itself, not just its type
 import { ProductRepository } from '~/core/repositories/product.repository';
-// biome-ignore lint/style/useImportType: NestJS injects dependencies
-import { MediaService, UploadMediaResponse } from '~/core/services/media.service';
+// biome-ignore lint/style/useImportType: NestJS requires importing the class itself, not just its type
+import { MediaService } from '~/core/services/media.service';
 import {
   type ImageId,
   type ProductId,
@@ -21,113 +21,73 @@ export class UpdateProductUseCase {
   constructor(
     private readonly productRepo: ProductRepository,
     private readonly mediaService: MediaService,
-    private readonly categoryRepo: CategoryRepository,
   ) {}
 
   async execute(productId: ProductId, dto: UpdateProductDto) {
     const currentProduct = await this.productRepo.findById(productId);
     if (!currentProduct) throw new NotFoundException('Product not found');
 
-    if (dto.categoryId) {
-      const categoryExists = await this.categoryRepo.existsById(toCategoryId(dto.categoryId));
-      if (!categoryExists) throw new NotFoundException('Category not found');
-    }
+    // Classify images (Diffing)
+    const imagesToKeep = dto.images?.filter((img) => img.id) || [];
+    const imagesToUpload = dto.images?.filter((img) => img.file) || [];
+    const keepIds = new Set(imagesToKeep.map((img) => img.id));
+    const imagesToDelete = currentProduct.images.filter((img) => !keepIds.has(img.id));
 
-    /**
-     * Separate all fields that need mapping (Branded Types) from updateFields
-     * to avoid leaking 'string' or 'number' types into the repository.
-     */
-    const { images, categoryId, price, specs, frGraphData, ...updateFields } = dto;
+    const newUploadedImages = await Promise.all(
+      imagesToUpload.map(async (img) => {
+        const res = await this.mediaService.upload(img.file!, 'products');
+        return {
+          url: res.url,
+          publicId: res.publicId,
+          isPrimary: img.isPrimary,
+          metadata: {
+            width: res.width ?? 0,
+            height: res.height ?? 0,
+            format: res.format ?? 'unknown',
+            bytes: res.bytes ?? 0,
+          },
+        };
+      }),
+    );
 
-    let keepImages: { id: ImageId; isPrimary: boolean }[] = [];
-    let deleteImageIds: ImageId[] = [];
-    let newUploadedImages: (UploadMediaResponse & { isPrimary: boolean })[] = [];
+    // Update DB
+    const updated = await this.productRepo.update(productId, {
+      name: dto.name,
+      slug: dto.name ? slugify(dto.name, { lower: true }) : undefined,
+      description: dto.description,
+      stock: dto.stock,
+      threeModelId: dto.threeModelId,
+      status: dto?.status ?? ProductStatus.DRAFT,
 
-    if (images) {
-      const imagesToKeep = images.filter((img) => img.id);
-      const imagesToUpload = images.filter((img) => img.file);
+      // Convert Branded Types at root level
+      categoryId: dto.categoryId ? toCategoryId(dto.categoryId) : undefined,
+      price: dto.price ? toUsd(dto.price) : undefined,
 
-      const imageIdsToKeep = new Set(imagesToKeep.map((img) => img.id as ImageId));
-      const imagesToDelete = currentProduct.images.filter((img) => !imageIdsToKeep.has(img.id));
+      // Handle nested specs object
+      ...(dto.specs && {
+        specs: {
+          impedance: toOhm(dto.specs.impedance),
+          sensitivity: toDecibel(dto.specs.sensitivity),
+          frequencyResponse: {
+            min: toHertz(dto.specs.frequencyResponse.min),
+            max: toHertz(dto.specs.frequencyResponse.max),
+          },
+          driverType: dto.specs.driverType,
+        },
+      }),
 
-      deleteImageIds = imagesToDelete.map((img) => img.id);
-      keepImages = imagesToKeep.map((img) => ({
+      // Handle images
+      keepImages: imagesToKeep.map((img) => ({
         id: img.id as ImageId,
         isPrimary: img.isPrimary,
-      }));
+      })),
+      newImages: newUploadedImages,
+      deleteImageIds: imagesToDelete.map((img) => img.id),
+    });
 
-      newUploadedImages = await Promise.all(
-        imagesToUpload.map((img) =>
-          this.mediaService.upload(img.file!, 'products').then((res) => ({
-            ...res,
-            isPrimary: img.isPrimary,
-          })),
-        ),
-      );
-    }
+    // 4. Cleanup Cloudinary
+    await Promise.all(imagesToDelete.map((img) => this.mediaService.delete(img.publicId).catch(() => {})));
 
-    try {
-      // Prepare update data with correct data types
-      const updateInput = {
-        ...updateFields, // Only contains name, description, stock, threeModelId (plain type)
-        ...(price !== undefined && { price: toUsd(price) }),
-        ...(categoryId !== undefined && { categoryId: toCategoryId(categoryId) }),
-        ...(specs && {
-          specs: {
-            impedance: toOhm(specs.impedance),
-            sensitivity: toDecibel(specs.sensitivity),
-            frequencyResponse: {
-              min: toHertz(specs.frequencyResponse.min),
-              max: toHertz(specs.frequencyResponse.max),
-            },
-            driverType: specs.driverType,
-          },
-        }),
-        ...(frGraphData && {
-          frGraphData: frGraphData.map((point) => [Number(point[0]), Number(point[1])] as [number, number]),
-        }),
-        ...(images && {
-          keepImages,
-          newImages: newUploadedImages.map((img) => ({
-            url: img.url,
-            publicId: img.publicId,
-            isPrimary: img.isPrimary,
-            metadata: {
-              width: img.width ?? 0,
-              height: img.height ?? 0,
-              format: img.format ?? 'unknown',
-              bytes: img.bytes ?? 0,
-            },
-          })),
-          deleteImageIds,
-        }),
-      };
-
-      const updatedProduct = await this.productRepo.update(productId, updateInput);
-
-      if (images && deleteImageIds.length > 0) {
-        const imagesToDeleteData = currentProduct.images.filter((img) => deleteImageIds.includes(img.id));
-        await Promise.all(
-          imagesToDeleteData.map((img) =>
-            this.mediaService
-              .delete(img.publicId)
-              .catch((err) => console.error(`[UpdateProductUseCase] Clean up failed: ${img.publicId}`, err)),
-          ),
-        );
-      }
-
-      return updatedProduct;
-    } catch (error) {
-      if (newUploadedImages.length > 0) {
-        await Promise.all(
-          newUploadedImages.map((img) =>
-            this.mediaService
-              .delete(img.publicId)
-              .catch((err) => console.error(`[UpdateProductUseCase] Rollback failed: ${img.publicId}`, err)),
-          ),
-        );
-      }
-      throw error;
-    }
+    return updated;
   }
 }

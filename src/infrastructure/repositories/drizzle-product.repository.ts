@@ -4,7 +4,7 @@ import { and, eq, inArray, sql } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import type { ProductWithArrayImage, ProductWithSingleImage } from '~/core/entities/product.entity';
 import type { ProductRepository, SaveProductInput, UpdateProductInput } from '~/core/repositories/product.repository';
-import { type CategoryId, type ProductId, toImageId, toProductId } from '~/core/types/branded.type';
+import { type CategoryId, type ProductId, toImageId } from '~/core/types/branded.type';
 import { DRIZZLE_TOKEN } from '~/infrastructure/constants/provider-tokens';
 import type { DrizzleDB } from '~/infrastructure/database/drizzle.provider';
 import { imageTable, productImageTable, productTable } from '~/infrastructure/database/schemas';
@@ -75,79 +75,59 @@ export class DrizzleProductRepository implements ProductRepository {
     return result.rows[0].exists;
   }
 
-  async save(product: SaveProductInput): Promise<ProductWithArrayImage> {
-    const { images, ...productData } = product;
-    const productId = productData.id || toProductId(crypto.randomUUID());
-
+  async save(input: SaveProductInput): Promise<ProductWithArrayImage> {
     return await this.db.transaction(async (tx) => {
-      await tx
-        .insert(productTable)
-        .values({
-          ...productData,
-          id: productId,
-          updatedAt: new Date(),
-        })
-        .onConflictDoUpdate({
-          target: productTable.id,
-          set: { ...productData, updatedAt: new Date() },
-        });
+      await tx.insert(productTable).values({
+        id: input.id,
+        name: input.name,
+        slug: input.slug,
+        categoryId: input.categoryId,
+        description: input.description,
+        price: input.price,
+        stock: input.stock,
+        specs: input.specs,
+        frGraphData: input.frGraphData,
+        threeModelId: input.threeModelId,
+        status: input.status,
+        aiGenerated: input.aiGenerated,
+      });
 
-      if (images && images.length > 0) {
-        for (const img of images) {
-          const imageId = toImageId(crypto.randomUUID());
-
-          const [newImage] = await tx
-            .insert(imageTable)
-            .values({
-              id: imageId,
-              url: img.url!,
-              publicId: img.publicId!,
-              metadata: img.metadata,
-              updatedAt: new Date(),
-            })
-            .returning();
-
+      if (input.images && input.images.length > 0) {
+        for (const img of input.images) {
+          const newImageId = toImageId(crypto.randomUUID());
+          await tx.insert(imageTable).values({
+            id: newImageId,
+            url: img.url,
+            publicId: img.publicId,
+            metadata: img.metadata,
+          });
           await tx.insert(productImageTable).values({
-            productId: productId,
-            imageId: newImage.id,
+            productId: input.id,
+            imageId: newImageId,
             isPrimary: img.isPrimary,
           });
         }
       }
 
-      const result = await this.findById(productId);
-      if (!result) throw new Error('Failed to retrieve product after saving');
+      const result = await this.findById(input.id);
+      if (!result) throw new Error('Failed to create product');
       return result;
     });
   }
 
   async update(id: ProductId, input: UpdateProductInput): Promise<ProductWithArrayImage> {
-    const { keepImages, newImages, deleteImageIds, ...productData } = input;
-
     return await this.db.transaction(async (tx) => {
-      // Update basic product information
-      if (Object.keys(productData).length > 0) {
-        await tx
-          .update(productTable)
-          .set({ ...productData, updatedAt: new Date() })
-          .where(eq(productTable.id, id));
+      const { keepImages, newImages, deleteImageIds, ...productFields } = input;
+
+      if (Object.keys(productFields).length > 0) {
+        await tx.update(productTable).set(productFields).where(eq(productTable.id, id));
       }
 
-      // Handle image deletion (DELETE group)
       if (deleteImageIds && deleteImageIds.length > 0) {
-        // Delete from the association table first
-        await tx
-          .delete(productImageTable)
-          .where(and(eq(productImageTable.productId, id), inArray(productImageTable.imageId, deleteImageIds)));
-
         await tx.delete(imageTable).where(inArray(imageTable.id, deleteImageIds));
       }
 
-      // Reset isPrimary to false for all images of the product
-      await tx.update(productImageTable).set({ isPrimary: false }).where(eq(productImageTable.productId, id));
-
-      // Update old images (KEEP group - mainly update isPrimary)
-      if (keepImages && keepImages.length > 0) {
+      if (keepImages) {
         for (const img of keepImages) {
           await tx
             .update(productImageTable)
@@ -156,19 +136,15 @@ export class DrizzleProductRepository implements ProductRepository {
         }
       }
 
-      // Add new images (ADD group)
-      if (newImages && newImages.length > 0) {
+      if (newImages) {
         for (const img of newImages) {
           const newImageId = toImageId(crypto.randomUUID());
-
           await tx.insert(imageTable).values({
             id: newImageId,
             url: img.url,
             publicId: img.publicId,
-            metadata: img.metadata, // Already processed by Use Case ?? 0
-            updatedAt: new Date(),
+            metadata: img.metadata,
           });
-
           await tx.insert(productImageTable).values({
             productId: id,
             imageId: newImageId,

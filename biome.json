@@ -45,6 +45,10 @@
               {
                 "selector": { "kind": "objectLiteralProperty" },
                 "formats": ["camelCase", "snake_case"]
+              },
+              {
+                "selector": { "kind": "enumMember" },
+                "formats": ["CONSTANT_CASE", "camelCase"]
               }
             ]
           }

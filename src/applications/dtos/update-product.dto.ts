@@ -1,8 +1,9 @@
 import type { Readable } from 'node:stream';
 import { OmitType, PartialType } from '@nestjs/mapped-types';
 import { Type } from 'class-transformer';
-import { IsArray, IsBoolean, IsOptional, IsString, ValidateNested } from 'class-validator';
+import { IsArray, IsBoolean, IsEnum, IsOptional, IsString, ValidateNested } from 'class-validator';
 import { CreateProductDto } from '~/applications/dtos/create-product.dto';
+import { ProductStatus } from '~/core/entities/product.entity';
 import { IsBufferOrReadable } from '~/infrastructure/validations/is-buffer-or-readable.decorator';
 
 export class UpdateImageDto {
@@ -24,4 +25,8 @@ export class UpdateProductDto extends PartialType(OmitType(CreateProductDto, ['i
   @ValidateNested({ each: true })
   @Type(() => UpdateImageDto)
   images?: UpdateImageDto[];
+
+  @IsOptional()
+  @IsEnum(ProductStatus)
+  status?: ProductStatus;
 }
