@@ -1,9 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 // biome-ignore lint/style/useImportType: NestJS requires importing the class itself, not just its type
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import type { ProductWithArrayImage, ProductWithSingleImage } from '~/core/entities/product.entity';
-import type { ProductRepository, SaveProductInput } from '~/core/repositories/product.repository';
+import type { ProductRepository, SaveProductInput, UpdateProductInput } from '~/core/repositories/product.repository';
 import { type CategoryId, type ProductId, toImageId, toProductId } from '~/core/types/branded.type';
 import { DRIZZLE_TOKEN } from '~/infrastructure/constants/provider-tokens';
 import type { DrizzleDB } from '~/infrastructure/database/drizzle.provider';
@@ -117,6 +117,68 @@ export class DrizzleProductRepository implements ProductRepository {
 
       const result = await this.findById(productId);
       if (!result) throw new Error('Failed to retrieve product after saving');
+      return result;
+    });
+  }
+
+  async update(id: ProductId, input: UpdateProductInput): Promise<ProductWithArrayImage> {
+    const { keepImages, newImages, deleteImageIds, ...productData } = input;
+
+    return await this.db.transaction(async (tx) => {
+      // Update basic product information
+      if (Object.keys(productData).length > 0) {
+        await tx
+          .update(productTable)
+          .set({ ...productData, updatedAt: new Date() })
+          .where(eq(productTable.id, id));
+      }
+
+      // Handle image deletion (DELETE group)
+      if (deleteImageIds && deleteImageIds.length > 0) {
+        // Delete from the association table first
+        await tx
+          .delete(productImageTable)
+          .where(and(eq(productImageTable.productId, id), inArray(productImageTable.imageId, deleteImageIds)));
+
+        await tx.delete(imageTable).where(inArray(imageTable.id, deleteImageIds));
+      }
+
+      // Reset isPrimary to false for all images of the product
+      await tx.update(productImageTable).set({ isPrimary: false }).where(eq(productImageTable.productId, id));
+
+      // Update old images (KEEP group - mainly update isPrimary)
+      if (keepImages && keepImages.length > 0) {
+        for (const img of keepImages) {
+          await tx
+            .update(productImageTable)
+            .set({ isPrimary: img.isPrimary })
+            .where(and(eq(productImageTable.productId, id), eq(productImageTable.imageId, img.id)));
+        }
+      }
+
+      // Add new images (ADD group)
+      if (newImages && newImages.length > 0) {
+        for (const img of newImages) {
+          const newImageId = toImageId(crypto.randomUUID());
+
+          await tx.insert(imageTable).values({
+            id: newImageId,
+            url: img.url,
+            publicId: img.publicId,
+            metadata: img.metadata, // Already processed by Use Case ?? 0
+            updatedAt: new Date(),
+          });
+
+          await tx.insert(productImageTable).values({
+            productId: id,
+            imageId: newImageId,
+            isPrimary: img.isPrimary,
+          });
+        }
+      }
+
+      const result = await this.findById(id);
+      if (!result) throw new Error('Product not found after update');
       return result;
     });
   }

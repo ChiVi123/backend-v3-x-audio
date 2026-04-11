@@ -1,11 +1,12 @@
-import { boolean, jsonb, pgTable, primaryKey, text, uuid, varchar } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
+import { boolean, jsonb, pgTable, primaryKey, text, uniqueIndex, uuid, varchar } from 'drizzle-orm/pg-core';
 import type { ImageId } from '~/core/types/branded.type';
 import { timestamps } from '~/infrastructure/database/schemas/base.schema';
 import { productTable } from '~/infrastructure/database/schemas/product.schema';
 
 export const imageTable = pgTable('image', {
   id: uuid('id').primaryKey().defaultRandom().$type<ImageId>(),
-  publicId: varchar('public_id', { length: 255 }).notNull(),
+  publicId: varchar('public_id', { length: 255 }).notNull().unique(),
   url: text('url').notNull(),
   altText: varchar('alt_text', { length: 255 }),
   metadata: jsonb('metadata').$type<{ width: number; height: number; format: string; bytes: number }>(),
@@ -25,5 +26,6 @@ export const productImageTable = pgTable(
   },
   (t) => ({
     pk: primaryKey({ columns: [t.productId, t.imageId] }),
+    uniquePrimaryIdx: uniqueIndex('unique_primary_image_per_product').on(t.productId).where(sql`is_primary = true`),
   }),
 );

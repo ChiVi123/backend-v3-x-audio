@@ -7,6 +7,7 @@ import {
   IsEnum,
   IsNotEmpty,
   IsNumber,
+  IsOptional,
   IsString,
   Min,
   ValidateNested,
@@ -80,6 +81,7 @@ export class CreateProductDto {
   frGraphData: string[][];
 
   @IsString()
+  @IsOptional()
   threeModelId?: string;
 
   @ValidateNested({ each: true })
