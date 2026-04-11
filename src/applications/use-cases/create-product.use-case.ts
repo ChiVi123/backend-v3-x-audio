@@ -1,4 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+// biome-ignore lint/style/useImportType: NestJS requires importing the class itself, not just its type
+import { ConfigService } from '@nestjs/config';
 import slugify from 'slugify';
 import type { CreateProductDto } from '~/applications/dtos/create-product.dto';
 import { ProductStatus } from '~/core/entities/product.entity';
@@ -9,6 +11,7 @@ import { ProductRepository } from '~/core/repositories/product.repository';
 // biome-ignore lint/style/useImportType: NestJS requires importing the class itself, not just its type
 import { MediaService } from '~/core/services/media.service';
 import { toCategoryId, toDecibel, toHertz, toOhm, toProductId, toUsd } from '~/core/types/branded.type';
+import type { EnvironmentVariables } from '~/infrastructure/validations/env.validation';
 
 @Injectable()
 export class CreateProductUseCase {
@@ -16,6 +19,7 @@ export class CreateProductUseCase {
     private readonly mediaService: MediaService,
     private readonly productRepo: ProductRepository,
     private readonly categoryRepo: CategoryRepository,
+    private readonly configService: ConfigService<EnvironmentVariables>,
   ) {}
 
   async execute(dto: CreateProductDto) {
@@ -72,6 +76,7 @@ export class CreateProductUseCase {
           {
             url: uploaded.url,
             publicId: uploaded.publicId,
+            altText: dto.name,
             isPrimary: true,
             metadata: {
               width: uploaded.width ?? 0,
@@ -84,7 +89,9 @@ export class CreateProductUseCase {
         deleteImageIds: draftProduct.images.map((img) => img.id),
       });
     } catch (error) {
-      console.error('Cloudinary upload failed for draft product:', error);
+      if (this.configService.get('NODE_ENV') === 'development') {
+        console.error('Cloudinary upload failed for draft product:', error);
+      }
       return draftProduct; // Still return draft for user to edit manually
     }
   }

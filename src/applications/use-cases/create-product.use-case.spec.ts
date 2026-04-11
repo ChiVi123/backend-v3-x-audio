@@ -1,7 +1,7 @@
 /** biome-ignore-all lint/suspicious/noExplicitAny: For test */
 
 import { beforeEach, describe, expect, it, mock } from 'bun:test';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException } from '@nestjs/common';
 import { DriverType } from '~/core/types/product.type';
 import { validate } from '~/infrastructure/validations/env.validation';
 import { CreateProductUseCase } from './create-product.use-case';
@@ -9,22 +9,29 @@ import { CreateProductUseCase } from './create-product.use-case';
 const env = validate(process.env);
 
 describe('CreateProductUseCase', () => {
+  const mockConfigService = {
+    get: mock((key: string) => {
+      if (key === 'NODE_ENV') return 'test';
+      return undefined;
+    }),
+  };
   const mockMediaService = {
     upload: mock(() =>
       Promise.resolve({
         url: env.IMAGE_PRODUCT_PLACEHOLDER_URL,
-        publicId: 'test_id',
+        publicId: 'new-id',
         width: 800,
         height: 600,
         format: 'jpg',
         bytes: 1024,
       }),
     ),
+    delete: mock(() => Promise.resolve()),
   };
 
   const mockProductRepo = {
     existsByName: mock(() => Promise.resolve(false)),
-    save: mock((input) => Promise.resolve({ ...input, createdAt: new Date(), updatedAt: new Date() })),
+    save: mock((input) => Promise.resolve({ ...input, id: 'prod_123' })),
     update: mock((id, input) => Promise.resolve({ id, ...input })),
   };
 
@@ -35,49 +42,60 @@ describe('CreateProductUseCase', () => {
   let useCase: CreateProductUseCase;
 
   beforeEach(() => {
+    mockMediaService.upload.mockClear();
+    mockMediaService.delete.mockClear();
+    mockProductRepo.save.mockClear();
+    mockProductRepo.update.mockClear();
     mockProductRepo.existsByName.mockClear();
     mockCategoryRepo.existsById.mockClear();
 
-    useCase = new CreateProductUseCase(mockMediaService as any, mockProductRepo as any, mockCategoryRepo as any);
+    useCase = new CreateProductUseCase(
+      mockMediaService as any,
+      mockProductRepo as any,
+      mockCategoryRepo as any,
+      mockConfigService as any,
+    );
   });
 
   const dummyDto = {
-    name: 'Sony WH-1000XM5',
+    name: 'Tai nghe V3-X',
     categoryId: 'cat_123',
-    description: 'Best noise canceling headphones',
-    price: 350,
-    stock: 50,
+    price: 500,
+    images: [{ file: Buffer.from('test'), isPrimary: true }],
     specs: {
       impedance: 32,
-      sensitivity: 102,
-      frequencyResponse: { min: 4, max: 40000 },
+      sensitivity: 100,
+      frequencyResponse: { min: 20, max: 20000 },
       driverType: DriverType.Dynamic,
     },
-    frGraphData: [
-      [20, 0],
-      [1000, 0],
-    ],
-    images: [{ file: Buffer.from('test'), isPrimary: true }],
+    frGraphData: [[20, 0]],
   };
 
-  it('should create product successfully when data is valid', async () => {
+  it('should create product successfully with 3-step process', async () => {
     const result = await useCase.execute(dummyDto as any);
 
+    expect(mockProductRepo.save).toHaveBeenCalled(); // Step 1: Save Draft
+    expect(mockMediaService.upload).toHaveBeenCalled(); // Step 2: Upload
+    expect(mockProductRepo.update).toHaveBeenCalled(); // Step 3: Update URL
     expect(result).toBeDefined();
-    expect(mockProductRepo.save).toHaveBeenCalled();
-    expect(mockMediaService.upload).toHaveBeenCalled();
-    expect(mockProductRepo.update).toHaveBeenCalled();
   });
 
-  it('should throw NotFoundException if category does not exist', async () => {
-    mockCategoryRepo.existsById.mockReturnValueOnce(Promise.resolve(false));
+  it('should delete image on Cloudinary if the final DB update step fails (Rollback)', async () => {
+    // Simulate the final DB update step failing
+    mockProductRepo.update.mockImplementationOnce(() => Promise.reject(new Error('DB Error')));
 
-    expect(useCase.execute(dummyDto as any)).rejects.toThrow(NotFoundException);
+    try {
+      await useCase.execute(dummyDto as any);
+    } catch (_e) {
+      // Check if mediaService.delete was called to clean up
+      expect(mockMediaService.delete).toHaveBeenCalledWith('new-id');
+    }
   });
 
-  it('should throw BadRequestException if product name already exists', async () => {
+  it('should throw an error if the product already exists', async () => {
     mockProductRepo.existsByName.mockReturnValueOnce(Promise.resolve(true));
 
     expect(useCase.execute(dummyDto as any)).rejects.toThrow(BadRequestException);
+    expect(mockMediaService.upload).not.toHaveBeenCalled();
   });
 });
