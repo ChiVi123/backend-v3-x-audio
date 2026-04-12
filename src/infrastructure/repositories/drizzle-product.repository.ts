@@ -2,9 +2,9 @@ import { ConflictException, Inject, Injectable } from '@nestjs/common';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 // biome-ignore lint/style/useImportType: NestJS requires importing the class itself, not just its type
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import type { ProductWithArrayImage, ProductWithSingleImage } from '~/core/entities/product.entity';
+import type { ProductStatus, ProductWithArrayImage, ProductWithSingleImage } from '~/core/entities/product.entity';
 import type { ProductRepository, SaveProductInput, UpdateProductInput } from '~/core/repositories/product.repository';
-import { type CategoryId, type ImageId, type ProductId, toImageId } from '~/core/types/branded.type';
+import { type CategoryId, type ImageId, type ProductId, toCategoryId, toImageId } from '~/core/types/branded.type';
 import { DRIZZLE_TOKEN } from '~/infrastructure/constants/provider-tokens';
 import { isUniqueViolation } from '~/infrastructure/database/database.utils';
 import type { DrizzleDB } from '~/infrastructure/database/drizzle.provider';
@@ -27,45 +27,24 @@ export class DrizzleProductRepository implements ProductRepository {
       .leftJoin(imageTable, eq(productImageTable.imageId, imageTable.id))
       .where(eq(productTable.id, id));
 
-    console.log('[DrizzleProductRepository] findById', rows);
-
     if (rows.length === 0) return null;
 
-    const firstRow = rows[0].product;
+    const productInfo = rows[0].product;
+
     const images = rows
-      .filter((r) => r.image !== null)
-      .map((r) => ({
-        ...r.image!,
-        isPrimary: r.isPrimary,
+      .filter((row) => row.image !== null)
+      .map((row) => ({
+        ...row.image!,
+        isPrimary: row.isPrimary,
       }));
 
     return {
-      ...firstRow,
+      ...productInfo,
+      categoryId: toCategoryId(productInfo.categoryId),
+      threeModelId: productInfo.threeModelId ?? undefined,
+      status: productInfo.status as ProductStatus,
       images,
-    } as ProductWithArrayImage;
-  }
-
-  async findByCategory(categoryId: CategoryId): Promise<ProductWithSingleImage[]> {
-    const rows = await this.db
-      .select({
-        product: productTable,
-        image: imageTable,
-        isPrimary: productImageTable.isPrimary,
-      })
-      .from(productTable)
-      .leftJoin(
-        productImageTable,
-        and(eq(productTable.id, productImageTable.productId), eq(productImageTable.isPrimary, true)),
-      )
-      .leftJoin(imageTable, eq(productImageTable.imageId, imageTable.id))
-      .where(eq(productTable.categoryId, categoryId));
-
-    console.log('[DrizzleProductRepository] findByCategory', rows);
-
-    return rows.map((r) => ({
-      ...r.product,
-      image: r.image ? { ...r.image, isPrimary: r.isPrimary } : null,
-    })) as ProductWithSingleImage[];
+    };
   }
 
   async findAll(params: {
@@ -208,7 +187,14 @@ export class DrizzleProductRepository implements ProductRepository {
    * Handle delete images from imageTable (productImageTable will be deleted automatically thanks to cascade)
    */
   private async handleDeleteImages(tx: DrizzleTX, imageIds: ImageId[]) {
+    const imagesToDelete = await tx
+      .select({ publicId: imageTable.publicId })
+      .from(imageTable)
+      .where(inArray(imageTable.id, imageIds));
+
     await tx.delete(imageTable).where(inArray(imageTable.id, imageIds));
+
+    return imagesToDelete.map((img) => img.publicId);
   }
 
   /**

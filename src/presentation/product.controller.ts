@@ -1,9 +1,11 @@
-import { Controller, Get, Param, Patch, Post, Query, UseInterceptors } from '@nestjs/common';
+import { Controller, Get, NotFoundException, Param, Patch, Post, Query, UseInterceptors } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import type { CreateProductDto } from '~/applications/dtos/create-product.dto';
 import type { UpdateProductDto } from '~/applications/dtos/update-product.dto';
 // biome-ignore lint/style/useImportType: NestJS requires importing the class itself, not just its type
 import { CreateProductUseCase } from '~/applications/use-cases/create-product.use-case';
+// biome-ignore lint/style/useImportType: NestJS requires importing the class itself, not just its type
+import { GetProductByIdUseCase } from '~/applications/use-cases/get-product-by-id.use-case';
 // biome-ignore lint/style/useImportType: NestJS requires importing the class itself, not just its type
 import { GetProductListUseCase } from '~/applications/use-cases/get-product-list.use-case';
 // biome-ignore lint/style/useImportType: NestJS requires importing the class itself, not just its type
@@ -17,7 +19,17 @@ export class ProductController {
     private readonly createUseCase: CreateProductUseCase,
     private readonly updateUseCase: UpdateProductUseCase,
     private readonly getProductListUseCase: GetProductListUseCase,
+    private readonly getProductByIdUseCase: GetProductByIdUseCase,
   ) {}
+
+  @Get(':id')
+  async findOne(@Param('id') id: string) {
+    const product = await this.getProductByIdUseCase.execute(toProductId(id));
+    if (!product) {
+      throw new NotFoundException('Product not found');
+    }
+    return product;
+  }
 
   @Get()
   async findAll(

@@ -76,7 +76,6 @@ describe('ProductController - GetProductList (Data Edge Cases)', () => {
     expect(response.body).toBeArray();
 
     const targetProduct = response.body.find((p: any) => p.id === prod.id);
-    // Kiểm tra: Không crash và image phải là null
     expect(targetProduct.image).toBeNull();
   });
 
@@ -114,5 +113,38 @@ describe('ProductController - GetProductList (Data Edge Cases)', () => {
     const target = response.body.find((p: any) => p.id === prod.id);
     expect(target.image).not.toBeNull();
     expect(target.image.url).toBe('http://v3x-audio.com/image.jpg');
+  });
+
+  it('should return ALL images when fetching product by ID', async () => {
+    const prodId = toProductId(randomUUID());
+    await db.insert(productTable).values({
+      id: prodId,
+      name: 'Detail Test',
+      slug: 'detail-test',
+      categoryId: MOCK_CAT_ID,
+      description: 'Test description',
+      price: 100 as any,
+      specs: { driverType: DriverType.Dynamic } as any,
+      frGraphData: [],
+      status: 'live' as any,
+    });
+
+    const img1 = toImageId(randomUUID());
+    const img2 = toImageId(randomUUID());
+
+    await db.insert(imageTable).values([
+      { id: img1, url: 'primary.jpg', publicId: 'p1' },
+      { id: img2, url: 'gallery.jpg', publicId: 'g2' },
+    ]);
+
+    await db.insert(productImageTable).values([
+      { productId: prodId, imageId: img1, isPrimary: true },
+      { productId: prodId, imageId: img2, isPrimary: false },
+    ]);
+
+    const response = await request(app.getHttpServer()).get(`/products/${prodId}`);
+
+    expect(response.body.images).toHaveLength(2);
+    expect(response.body.images.some((img: any) => img.url === 'gallery.jpg')).toBe(true);
   });
 });

@@ -69,6 +69,7 @@ export class CreateProductDto {
   @Min(0)
   stock: number;
 
+  @IsNotEmpty()
   @ValidateNested()
   @Type(() => SpecsDto)
   specs: SpecsDto;
