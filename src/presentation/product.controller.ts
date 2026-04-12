@@ -1,9 +1,11 @@
-import { Controller, Param, Patch, Post, UseInterceptors } from '@nestjs/common';
+import { Controller, Get, Param, Patch, Post, Query, UseInterceptors } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import type { CreateProductDto } from '~/applications/dtos/create-product.dto';
 import type { UpdateProductDto } from '~/applications/dtos/update-product.dto';
 // biome-ignore lint/style/useImportType: NestJS requires importing the class itself, not just its type
 import { CreateProductUseCase } from '~/applications/use-cases/create-product.use-case';
+// biome-ignore lint/style/useImportType: NestJS requires importing the class itself, not just its type
+import { GetProductListUseCase } from '~/applications/use-cases/get-product-list.use-case';
 // biome-ignore lint/style/useImportType: NestJS requires importing the class itself, not just its type
 import { UpdateProductUseCase } from '~/applications/use-cases/update-product.use-case';
 import { toProductId } from '~/core/types/branded.type';
@@ -14,7 +16,21 @@ export class ProductController {
   constructor(
     private readonly createUseCase: CreateProductUseCase,
     private readonly updateUseCase: UpdateProductUseCase,
+    private readonly getProductListUseCase: GetProductListUseCase,
   ) {}
+
+  @Get()
+  async findAll(
+    @Query('categoryId') categoryId?: string,
+    @Query('limit') limit?: number,
+    @Query('page') page?: number,
+  ) {
+    return this.getProductListUseCase.execute({
+      categoryId,
+      limit: limit ? Number(limit) : 10,
+      page: page ? Number(page) : 1,
+    });
+  }
 
   @Post()
   @UseInterceptors(FilesInterceptor('files')) // Field name 'files' in Postman

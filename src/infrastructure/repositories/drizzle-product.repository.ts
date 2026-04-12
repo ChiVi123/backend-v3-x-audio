@@ -68,6 +68,41 @@ export class DrizzleProductRepository implements ProductRepository {
     })) as ProductWithSingleImage[];
   }
 
+  async findAll(params: {
+    categoryId?: CategoryId;
+    limit?: number;
+    offset?: number;
+  }): Promise<ProductWithSingleImage[]> {
+    const { categoryId, limit = 10, offset = 0 } = params;
+
+    const query = this.db
+      .select({
+        product: productTable,
+        image: imageTable,
+      })
+      .from(productTable)
+      .leftJoin(
+        productImageTable,
+        and(eq(productTable.id, productImageTable.productId), eq(productImageTable.isPrimary, true)),
+      )
+      .leftJoin(imageTable, eq(productImageTable.imageId, imageTable.id))
+      .where(categoryId ? eq(productTable.categoryId, categoryId) : undefined)
+      .limit(limit)
+      .offset(offset);
+
+    const rows = await query;
+
+    return rows.map((row) => ({
+      ...row.product,
+      image: row.image
+        ? {
+            ...row.image,
+            isPrimary: true,
+          }
+        : null,
+    })) as ProductWithSingleImage[];
+  }
+
   async existsByName(name: string): Promise<boolean> {
     const query = sql`SELECT EXISTS (
       SELECT 1 FROM ${productTable} WHERE ${productTable.name} = ${name}

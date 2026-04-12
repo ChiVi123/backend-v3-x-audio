@@ -24,6 +24,11 @@ export type UpdateProductInput = Partial<Omit<Product, 'id' | 'createdAt' | 'upd
 export abstract class ProductRepository {
   abstract findById(id: ProductId): Promise<ProductWithArrayImage | null>;
   abstract findByCategory(categoryId: CategoryId): Promise<ProductWithSingleImage[]>;
+  abstract findAll(params: {
+    categoryId?: CategoryId;
+    limit?: number;
+    offset?: number;
+  }): Promise<ProductWithSingleImage[]>;
   abstract existsByName(name: string): Promise<boolean>;
   abstract save(product: SaveProductInput): Promise<ProductWithArrayImage>;
   abstract update(id: ProductId, input: UpdateProductInput): Promise<ProductWithArrayImage>;
