@@ -17,6 +17,10 @@ export class EnvironmentVariables {
   @Max(65535)
   PORT: number;
 
+  @IsString()
+  @IsNotEmpty()
+  DATABASE_URL: string;
+
   @IsUrl()
   @IsNotEmpty()
   IMAGE_PRODUCT_PLACEHOLDER_URL: string;

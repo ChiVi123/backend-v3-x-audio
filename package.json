@@ -15,11 +15,16 @@
     "test:watch": "cross-env NODE_ENV=test bun test --watch",
     "test:cov": "cross-env NODE_ENV=test bun test --coverage",
     "test:e2e": "cross-env NODE_ENV=test bun test ./test/*.e2e-spec.ts",
-    "db:generate": "drizzle-kit generate --config=drizzle.config.ts",
-    "db:migrate": "drizzle-kit migrate --config=drizzle.config.ts",
-    "db:push": "drizzle-kit push --config=drizzle.config.ts",
-    "db:studio": "drizzle-kit studio --config=drizzle.config.ts",
-    "db:seed": "cross-env NODE_ENV=development bun run scripts/seed.ts"
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio",
+    "db:seed": "cross-env NODE_ENV=development bun run scripts/drizzle-seed.ts",
+    "db:reset": "cross-env NODE_ENV=development bun run scripts/drizzle-reset.ts",
+    "db:generate:test": "bun run --env-file=.env.test.local node_modules/.bin/drizzle-kit generate",
+    "db:push:test": "bun run --env-file=.env.test.local node_modules/.bin/drizzle-kit push",
+    "db:seed:test": "cross-env NODE_ENV=test bun run scripts/drizzle-seed.ts",
+    "db:reset:test": "cross-env NODE_ENV=test bun run scripts/drizzle-reset.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

@@ -1,12 +1,8 @@
-import { drizzle } from 'drizzle-orm/node-postgres';
-import { Pool } from 'pg';
 import { categoryTable } from '~/infrastructure/database/schemas/category.schema';
-
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-const db = drizzle(pool);
+import { closeConnection, db } from './drizzle-client';
 
 async function main() {
-  console.log('--- Seeding Categories ---');
+  console.log('[Script Drizzle] --- Seeding Categories ---');
 
   const categories = [
     {
@@ -42,12 +38,12 @@ async function main() {
         })
         .onConflictDoNothing();
     }
-    console.log('✅ Seeding completed!');
+    console.log('[Script Drizzle] ✅ Seeding completed!');
   } catch (error) {
-    console.error('❌ Seeding failed:', error);
+    console.error('[Script Drizzle] ❌ Seeding failed:', error);
   } finally {
-    console.log('✅ Close connection!');
-    await pool.end();
+    console.log('[Script Drizzle] ✅ Close connection!');
+    await closeConnection();
   }
 }
 
