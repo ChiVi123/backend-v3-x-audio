@@ -105,6 +105,11 @@ export class DrizzleProductRepository implements ProductRepository {
 
     try {
       return await this.db.transaction(async (tx) => {
+        const hasRealNewImages = newImages?.some((img) => img.url !== 'pending');
+        if (hasRealNewImages) {
+          await this.handleDeletePendingImages(tx, id);
+        }
+
         if (Object.keys(productFields).length > 0) {
           await tx.update(productTable).set(productFields).where(eq(productTable.id, id));
         }
@@ -184,6 +189,23 @@ export class DrizzleProductRepository implements ProductRepository {
         .update(productImageTable)
         .set({ isPrimary: img.isPrimary })
         .where(and(eq(productImageTable.productId, productId), eq(productImageTable.imageId, img.id)));
+    }
+  }
+
+  /**
+   * Find and delete pending images of a product
+   */
+  private async handleDeletePendingImages(tx: DrizzleTX, productId: ProductId) {
+    // Get list of imageId that are "pending" of this product
+    const pendingImages = await tx
+      .select({ id: imageTable.id })
+      .from(imageTable)
+      .innerJoin(productImageTable, eq(imageTable.id, productImageTable.imageId))
+      .where(and(eq(productImageTable.productId, productId), eq(imageTable.url, 'pending')));
+
+    if (pendingImages.length > 0) {
+      const idsToDelete = pendingImages.map((img) => img.id);
+      await tx.delete(imageTable).where(inArray(imageTable.id, idsToDelete));
     }
   }
 }
