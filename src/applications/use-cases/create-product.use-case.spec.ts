@@ -3,10 +3,7 @@
 import { beforeEach, describe, expect, it, mock } from 'bun:test';
 import { BadRequestException } from '@nestjs/common';
 import { DriverType } from '~/core/types/product.type';
-import { validate } from '~/infrastructure/validations/env.validation';
 import { CreateProductUseCase } from './create-product.use-case';
-
-const env = validate(process.env);
 
 describe('CreateProductUseCase', () => {
   const mockConfigService = {
@@ -18,7 +15,7 @@ describe('CreateProductUseCase', () => {
   const mockMediaService = {
     upload: mock(() =>
       Promise.resolve({
-        url: env.IMAGE_PRODUCT_PLACEHOLDER_URL,
+        url: 'https://example.com/image.jpg',
         publicId: 'new-id',
         width: 800,
         height: 600,

@@ -1,9 +1,11 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from '~/app.controller';
 import { AppService } from '~/app.service';
 import { DatabaseModule } from '~/infrastructure/database/drizzle.module';
 import { MediaModule } from '~/infrastructure/services/media/media.module';
+import { ImageGarbageCollector } from '~/infrastructure/tasks/image-garbage-collector.service';
 import { validate } from '~/infrastructure/validations/env.validation';
 
 @Module({
@@ -15,8 +17,9 @@ import { validate } from '~/infrastructure/validations/env.validation';
     }),
     DatabaseModule,
     MediaModule,
+    ScheduleModule.forRoot(),
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, ImageGarbageCollector],
 })
 export class AppModule {}

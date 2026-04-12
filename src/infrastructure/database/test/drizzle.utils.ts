@@ -7,7 +7,8 @@ export async function truncateAllTables(db: NodePgDatabase) {
     FROM information_schema.tables 
     WHERE table_schema = 'public' 
     AND table_type = 'BASE TABLE'
-    AND table_name != '__drizzle_migrations';
+    AND table_name != '__drizzle_migrations'
+    AND table_name != 'spatial_ref_sys';
   `);
 
   const tables = result.rows.map((r) => `"${r.table_name}"`).join(', ');
