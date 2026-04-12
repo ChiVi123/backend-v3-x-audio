@@ -7,6 +7,7 @@ import { DatabaseModule } from '~/infrastructure/database/drizzle.module';
 import { MediaModule } from '~/infrastructure/services/media/media.module';
 import { ImageGarbageCollector } from '~/infrastructure/tasks/image-garbage-collector.service';
 import { validate } from '~/infrastructure/validations/env.validation';
+import { ProductController } from '~/presentation/product.controller';
 
 @Module({
   imports: [
@@ -19,7 +20,7 @@ import { validate } from '~/infrastructure/validations/env.validation';
     MediaModule,
     ScheduleModule.forRoot(),
   ],
-  controllers: [AppController],
+  controllers: [AppController, ProductController],
   providers: [AppService, ImageGarbageCollector],
 })
 export class AppModule {}

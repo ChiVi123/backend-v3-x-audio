@@ -52,7 +52,7 @@ export class CreateProductUseCase {
         },
         driverType: dto.specs.driverType,
       },
-      frGraphData: dto.frGraphData.map((p) => [Number(p[0]), Number(p[1])]),
+      frGraphData: dto.frGraphData?.map((p) => [Number(p[0]), Number(p[1])]) ?? [],
       threeModelId: dto.threeModelId,
       status: ProductStatus.DRAFT,
       aiGenerated: true,

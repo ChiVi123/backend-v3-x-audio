@@ -27,7 +27,8 @@
     "strictBindCallApply": false,
     "noFallthroughCasesInSwitch": false,
     "types": [
-      "bun-types"
+      "bun-types",
+      "multer"
     ]
   }
 }

@@ -1,4 +1,3 @@
-import type { Readable } from 'node:stream';
 import { Type } from 'class-transformer';
 import {
   ArrayNotEmpty,
@@ -13,11 +12,10 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { DriverType } from '~/core/types/product.type';
-import { IsBufferOrReadable } from '~/infrastructure/validations/is-buffer-or-readable.decorator';
 
 class ImageDto {
-  @IsBufferOrReadable()
-  file: Buffer | Readable;
+  @IsOptional()
+  file: Buffer;
 
   @IsBoolean()
   isPrimary: boolean;
