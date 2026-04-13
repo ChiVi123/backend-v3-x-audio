@@ -1,4 +1,14 @@
-import { Controller, Get, NotFoundException, Param, Patch, Post, Query, UseInterceptors } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  NotFoundException,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import type { CreateProductDto } from '~/applications/dtos/create-product.dto';
 import type { UpdateProductDto } from '~/applications/dtos/update-product.dto';
@@ -11,6 +21,9 @@ import { GetProductListUseCase } from '~/applications/use-cases/get-product-list
 // biome-ignore lint/style/useImportType: NestJS requires importing the class itself, not just its type
 import { UpdateProductUseCase } from '~/applications/use-cases/update-product.use-case';
 import { toProductId } from '~/core/types/branded.type';
+import { JwtAuthGuard } from '~/infrastructure/auth/guards/jwt-auth.guard';
+import { RolesGuard } from '~/infrastructure/auth/guards/roles.guard';
+import { Roles } from '~/infrastructure/decorators/auth-roles.decorator';
 import { ParseFormData } from '~/infrastructure/decorators/parse-form-data.decorator';
 
 @Controller('products')
@@ -45,6 +58,8 @@ export class ProductController {
   }
 
   @Post()
+  @Roles('admin')
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @UseInterceptors(FilesInterceptor('files')) // Field name 'files' in Postman
   async create(@ParseFormData() dto: CreateProductDto) {
     // At this point, dto.images[0].file is already a Buffer, ready for Use Case to upload to Cloudinary
@@ -52,6 +67,8 @@ export class ProductController {
   }
 
   @Patch(':id')
+  @Roles('admin', 'editor')
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @UseInterceptors(FilesInterceptor('files'))
   async update(@Param('id') id: string, @ParseFormData() dto: UpdateProductDto) {
     return this.updateUseCase.execute(toProductId(id), dto);

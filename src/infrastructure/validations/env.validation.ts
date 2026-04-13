@@ -40,6 +40,14 @@ export class EnvironmentVariables {
   @IsString()
   @IsNotEmpty()
   CLOUDINARY_BASE_FOLDER: string;
+
+  @IsString()
+  @IsNotEmpty()
+  JWT_SECRET: string;
+
+  @IsString()
+  @IsNotEmpty()
+  JWT_EXPIRES_IN: string;
 }
 
 export function validate(config: Record<string, unknown>) {

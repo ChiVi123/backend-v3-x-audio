@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from '~/app.controller';
 import { AppService } from '~/app.service';
+import { AuthModule } from '~/infrastructure/auth/auth.module';
 import { DatabaseModule } from '~/infrastructure/database/drizzle.module';
 import { MediaModule } from '~/infrastructure/services/media/media.module';
 import { ImageGarbageCollector } from '~/infrastructure/tasks/image-garbage-collector.service';
@@ -20,6 +21,7 @@ import { ProductModule } from '~/presentation/product.module';
     DatabaseModule,
     MediaModule,
     ScheduleModule.forRoot(),
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService, ImageGarbageCollector],
