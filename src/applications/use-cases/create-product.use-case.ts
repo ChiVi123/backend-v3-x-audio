@@ -11,7 +11,10 @@ import { ProductRepository } from '~/core/repositories/product.repository';
 // biome-ignore lint/style/useImportType: NestJS requires importing the class itself, not just its type
 import { MediaService } from '~/core/services/media.service';
 import { toCategoryId, toDecibel, toHertz, toOhm, toProductId, toUsd } from '~/core/types/branded.type';
+import { CLOUDINARY_PRODUCT_FOLDER } from '~/infrastructure/constants/cloudinary';
 import type { EnvironmentVariables } from '~/infrastructure/validations/env.validation';
+
+const nodeEnvs = ['development', 'test'];
 
 @Injectable()
 export class CreateProductUseCase {
@@ -68,7 +71,11 @@ export class CreateProductUseCase {
 
     // Upload Cloudinary after DB success
     try {
-      const uploaded = await this.mediaService.upload(dto.images[0].file, 'products');
+      if (!dto.images?.[0]?.file) {
+        throw new BadRequestException('Primary product image is required');
+      }
+
+      const uploaded = await this.mediaService.upload(dto.images[0].file, CLOUDINARY_PRODUCT_FOLDER);
 
       // Update with real URL
       return await this.productRepo.update(productId, {
@@ -89,7 +96,7 @@ export class CreateProductUseCase {
         deleteImageIds: draftProduct.images.map((img) => img.id),
       });
     } catch (error) {
-      if (this.configService.get('NODE_ENV') === 'development') {
+      if (nodeEnvs.includes(this.configService.get('NODE_ENV') ?? '')) {
         console.error('Cloudinary upload failed for draft product:', error);
       }
       return draftProduct; // Still return draft for user to edit manually

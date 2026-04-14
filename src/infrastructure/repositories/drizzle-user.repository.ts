@@ -28,7 +28,7 @@ export class DrizzleUserRepository implements UserRepository {
   }
 
   async save(user: User, roleIds: string[]): Promise<UserWithRolesAndAvatar> {
-    return await this.db.transaction(async (tx) => {
+    await this.db.transaction(async (tx) => {
       await tx.insert(userTable).values(user);
 
       if (roleIds.length > 0) {
@@ -39,15 +39,15 @@ export class DrizzleUserRepository implements UserRepository {
           })),
         );
       }
-
-      const savedUser = await this.findById(user.id);
-      if (!savedUser) throw new Error('Failed to save user');
-      return savedUser;
     });
+
+    const savedUser = await this.findById(user.id);
+    if (!savedUser) throw new Error('Failed to save user');
+    return savedUser;
   }
 
   async update(id: UserId, data: Partial<User>, roleIds?: string[]): Promise<UserWithRolesAndAvatar> {
-    return await this.db.transaction(async (tx) => {
+    await this.db.transaction(async (tx) => {
       if (Object.keys(data).length > 0) {
         await tx.update(userTable).set(data).where(eq(userTable.id, id));
       }
@@ -63,11 +63,11 @@ export class DrizzleUserRepository implements UserRepository {
           );
         }
       }
-
-      const updatedUser = await this.findById(id);
-      if (!updatedUser) throw new Error('User not found after update');
-      return updatedUser;
     });
+
+    const updatedUser = await this.findById(id);
+    if (!updatedUser) throw new Error('User not found after update');
+    return updatedUser;
   }
 
   private queryUserWithRolesAndAvatar() {

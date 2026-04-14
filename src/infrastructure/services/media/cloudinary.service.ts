@@ -1,5 +1,5 @@
 import type { Readable } from 'node:stream';
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import { BadRequestException, Injectable, InternalServerErrorException } from '@nestjs/common';
 // biome-ignore lint/style/useImportType: NestJS requires importing the class itself, not just its type
 import { ConfigService } from '@nestjs/config';
 import { v2 as cloudinary, type UploadApiResponse } from 'cloudinary';
@@ -18,6 +18,10 @@ export class CloudinaryService implements MediaService {
 
   upload(file: Buffer | Readable, folder: string): Promise<UploadMediaResponse> {
     return new Promise((resolve, reject) => {
+      if (!file) {
+        return reject(new BadRequestException('Image buffer is empty or missing. Please check your upload payload.'));
+      }
+
       const uploadStream = cloudinary.uploader.upload_stream(
         { folder: `v3x_audio/${folder}`, resource_type: 'auto' },
         (error, result: UploadApiResponse) => {

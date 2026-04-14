@@ -5,6 +5,8 @@ export const ParseFormData = createParamDecorator((_data: unknown, ctx: Executio
   const body = request.body;
   const files = request.files as Express.Multer.File[];
 
+  console.log('[ParseFormData] files detected:', files?.length);
+
   if (!body || typeof body !== 'object') return body;
 
   const parsedBody = { ...body };
@@ -36,7 +38,7 @@ export const ParseFormData = createParamDecorator((_data: unknown, ctx: Executio
     // biome-ignore lint/suspicious/noExplicitAny: parsedBody is a dynamic FormData object with unknown shape
     parsedBody.images = parsedBody.images.map((img: any, index: number) => ({
       ...img,
-      file: files[index] ? files[index].buffer : undefined,
+      file: files[index]?.buffer,
     }));
   }
 

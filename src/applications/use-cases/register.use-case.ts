@@ -40,6 +40,11 @@ export class RegisterUseCase {
     }
     const finalRoleIds = dto.roleIds?.length ? dto.roleIds : [defaultRole.id];
 
-    return this.userRepo.save(newUser, finalRoleIds);
+    try {
+      return await this.userRepo.save(newUser, finalRoleIds);
+    } catch (error) {
+      console.log('[RegisterUseCase] error', error);
+      throw new InternalServerErrorException('Failed to register user');
+    }
   }
 }

@@ -1,4 +1,4 @@
-import { type CanActivate, type ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
+import { type CanActivate, type ExecutionContext, Injectable } from '@nestjs/common';
 // biome-ignore lint/style/useImportType: NestJS requires importing the class itself, not just its type
 import { Reflector } from '@nestjs/core';
 import type { UserWithRolesAndAvatar } from '~/core/entities/user.entity';
@@ -21,15 +21,10 @@ export class RolesGuard implements CanActivate {
     const { user } = context.switchToHttp().getRequest<{ user: UserWithRolesAndAvatar }>();
 
     if (!user?.roles) {
-      throw new ForbiddenException('User roles not found');
+      return false;
     }
 
     const hasRole = requiredRoles.some((role) => user.roles.some((userRole) => userRole.name === role));
-
-    if (!hasRole) {
-      throw new ForbiddenException('You do not have permission to access this resource');
-    }
-
-    return true;
+    return !!hasRole;
   }
 }

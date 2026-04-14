@@ -62,7 +62,6 @@ export class ProductController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @UseInterceptors(FilesInterceptor('files')) // Field name 'files' in Postman
   async create(@ParseFormData() dto: CreateProductDto) {
-    // At this point, dto.images[0].file is already a Buffer, ready for Use Case to upload to Cloudinary
     return this.createUseCase.execute(dto);
   }
 

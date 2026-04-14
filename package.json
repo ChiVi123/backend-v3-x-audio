@@ -9,6 +9,7 @@
     "build": "nest build",
     "start": "cross-env NODE_ENV=development bun run src/main.ts",
     "start:dev": "cross-env NODE_ENV=development bun run --watch src/main.ts",
+    "start:test": "cross-env NODE_ENV=test bun run --watch src/main.ts",
     "start:debug": "cross-env NODE_ENV=development bun run --debug --watch src/main.ts",
     "start:prod": "cross-env NODE_ENV=production node dist/main",
     "test": "cross-env NODE_ENV=test bun test --jobs=1",
@@ -24,7 +25,8 @@
     "db:generate:test": "bun run --env-file=.env.test.local node_modules/.bin/drizzle-kit generate",
     "db:push:test": "bun run --env-file=.env.test.local node_modules/.bin/drizzle-kit push",
     "db:seed:test": "cross-env NODE_ENV=test bun run scripts/drizzle-seed.ts",
-    "db:reset:test": "cross-env NODE_ENV=test bun run scripts/drizzle-reset.ts"
+    "db:reset:test": "cross-env NODE_ENV=test bun run scripts/drizzle-reset.ts",
+    "db:studio:test": "bun run --env-file=.env.test.local node_modules/.bin/drizzle-kit studio"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

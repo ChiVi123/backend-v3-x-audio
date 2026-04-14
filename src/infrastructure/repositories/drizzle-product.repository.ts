@@ -95,16 +95,12 @@ export class DrizzleProductRepository implements ProductRepository {
     const { images, ...productData } = input;
 
     try {
-      return await this.db.transaction(async (tx) => {
+      await this.db.transaction(async (tx) => {
         await tx.insert(productTable).values(productData);
 
         if (images && images.length > 0) {
           await this.handleInsertImages(tx, input.id, images);
         }
-
-        const result = await this.findById(input.id);
-        if (!result) throw new Error('Failed to retrieve product after save');
-        return result;
       });
     } catch (error) {
       if (isUniqueViolation(error)) {
@@ -112,13 +108,17 @@ export class DrizzleProductRepository implements ProductRepository {
       }
       throw error;
     }
+
+    const result = await this.findById(input.id);
+    if (!result) throw new Error('Failed to retrieve product after save');
+    return result;
   }
 
   async update(id: ProductId, input: UpdateProductInput): Promise<ProductWithArrayImage> {
     const { keepImages, newImages, deleteImageIds, ...productFields } = input;
 
     try {
-      return await this.db.transaction(async (tx) => {
+      await this.db.transaction(async (tx) => {
         const hasRealNewImages = newImages?.some((img) => img.url !== 'pending');
         if (hasRealNewImages) {
           await this.handleDeletePendingImages(tx, id);
@@ -142,10 +142,6 @@ export class DrizzleProductRepository implements ProductRepository {
         if (newImages && newImages.length > 0) {
           await this.handleInsertImages(tx, id, newImages);
         }
-
-        const result = await this.findById(id);
-        if (!result) throw new Error('Product not found after update');
-        return result;
       });
     } catch (error) {
       if (isUniqueViolation(error)) {
@@ -153,6 +149,10 @@ export class DrizzleProductRepository implements ProductRepository {
       }
       throw error;
     }
+
+    const result = await this.findById(id);
+    if (!result) throw new Error('Product not found after update');
+    return result;
   }
 
   async delete(id: ProductId): Promise<void> {

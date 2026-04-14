@@ -3,6 +3,8 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import { roleTable } from '~/infrastructure/database/schemas';
 
+console.log('[Seed Role] DATABASE_URL', process.env.DATABASE_URL);
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });

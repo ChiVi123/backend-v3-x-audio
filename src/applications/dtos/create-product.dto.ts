@@ -12,6 +12,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { DriverType } from '~/core/types/product.type';
+import { IsCoordinate2D } from '~/infrastructure/decorators/is-coordinate-2d.decorator';
 
 class ImageDto {
   @IsOptional()
@@ -76,16 +77,16 @@ export class CreateProductDto {
 
   @IsArray()
   @ArrayNotEmpty()
-  @IsString({ each: true })
-  frGraphData: string[][];
+  @IsCoordinate2D()
+  frGraphData: [number, number][];
 
-  @IsString()
   @IsOptional()
+  @IsString()
   threeModelId?: string;
 
-  @ValidateNested({ each: true })
-  @Type(() => ImageDto)
   @IsArray()
   @ArrayNotEmpty()
+  @ValidateNested({ each: true })
+  @Type(() => ImageDto)
   images: ImageDto[];
 }
