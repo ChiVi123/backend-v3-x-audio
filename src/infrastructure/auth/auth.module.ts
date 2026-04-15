@@ -1,8 +1,10 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { JwtModule } from '@nestjs/jwt';
+import { JwtModule, JwtService } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { LoginUseCase } from '~/applications/use-cases/login.use-case';
+import { LogoutUseCase } from '~/applications/use-cases/logout.use-case';
+import { RefreshTokenUseCase } from '~/applications/use-cases/refresh-token.use-case';
 import { RegisterUseCase } from '~/applications/use-cases/register.use-case';
 import { RoleRepository } from '~/core/repositories/role.repository';
 import { UserRepository } from '~/core/repositories/user.repository';
@@ -41,6 +43,20 @@ import { AuthController } from '~/presentation/auth.controller';
       useClass: DrizzleRoleRepository,
     },
     RolesGuard,
+    RefreshTokenUseCase,
+    LogoutUseCase,
+    {
+      provide: 'REFRESH_JWT_SERVICE',
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService<EnvironmentVariables>) => {
+        return new JwtService({
+          secret: configService.get('JWT_REFRESH_SECRET', { infer: true }),
+          signOptions: {
+            expiresIn: configService.get('JWT_REFRESH_EXPIRES_IN', { infer: true }),
+          },
+        });
+      },
+    },
   ],
   exports: [RegisterUseCase, LoginUseCase],
 })

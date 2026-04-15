@@ -14,6 +14,7 @@ export interface User {
   passwordHash: string;
   fullName: string;
   avatarImageId?: ImageId | null;
+  refreshTokenHash?: string | null;
   status: UserStatus;
   createdAt: Date;
   updatedAt: Date;

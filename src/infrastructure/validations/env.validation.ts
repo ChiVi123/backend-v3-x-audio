@@ -48,6 +48,14 @@ export class EnvironmentVariables {
   @IsString()
   @IsNotEmpty()
   JWT_EXPIRES_IN: string;
+
+  @IsString()
+  @IsNotEmpty()
+  JWT_REFRESH_SECRET: string;
+
+  @IsString()
+  @IsNotEmpty()
+  JWT_REFRESH_EXPIRES_IN: string;
 }
 
 export function validate(config: Record<string, unknown>) {

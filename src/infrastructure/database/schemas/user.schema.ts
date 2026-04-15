@@ -13,6 +13,7 @@ export const userTable = pgTable('user', {
   avatarImageId: uuid('avatar_image_id')
     .references(() => imageTable.id, { onDelete: 'set null' })
     .$type<ImageId>(),
+  refreshTokenHash: text('refresh_token_hash'),
   status: userStatusEnum('status').default('active').notNull(),
   ...timestamps,
 });
