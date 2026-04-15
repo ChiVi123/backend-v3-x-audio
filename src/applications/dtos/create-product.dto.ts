@@ -11,6 +11,7 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
+import { AudioCategory } from '~/core/entities/product.entity';
 import { DriverType } from '~/core/types/product.type';
 import { IsCoordinate2D } from '~/infrastructure/decorators/is-coordinate-2d.decorator';
 
@@ -23,23 +24,13 @@ class ImageDto {
 }
 
 class FrequencyResponseDto {
-  @IsNumber()
-  @Min(0)
-  min: number;
-
-  @IsNumber()
-  @Min(0)
-  max: number;
+  @IsNumber() @Min(0) min: number;
+  @IsNumber() @Min(0) max: number;
 }
 
-class SpecsDto {
-  @IsNumber()
-  @Min(0)
-  impedance: number;
-
-  @IsNumber()
-  @Min(0)
-  sensitivity: number;
+export class BaseSpecsDto {
+  @IsNumber() @Min(0) impedance: number;
+  @IsNumber() @Min(0) sensitivity: number;
 
   @ValidateNested()
   @Type(() => FrequencyResponseDto)
@@ -49,6 +40,42 @@ class SpecsDto {
   driverType: DriverType;
 }
 
+export class InEarSpecsDto extends BaseSpecsDto {
+  @IsEnum(['universal', 'custom'])
+  @IsOptional()
+  fitType?: 'universal' | 'custom';
+
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  nozzleSize?: number;
+}
+
+export class OverEarSpecsDto extends BaseSpecsDto {
+  @IsEnum(['open-back', 'closed-back', 'semi-open'])
+  design: 'open-back' | 'closed-back' | 'semi-open';
+
+  @IsString()
+  @IsNotEmpty()
+  earpadMaterial: string;
+}
+
+export class DacAmpSpecsDto extends BaseSpecsDto {
+  @IsString()
+  @IsNotEmpty()
+  chipset: string;
+
+  @IsString()
+  @IsNotEmpty()
+  maxSampleRate: string;
+}
+
+const specsMap = {
+  [AudioCategory.IN_EAR]: InEarSpecsDto,
+  [AudioCategory.OVER_EAR]: OverEarSpecsDto,
+  [AudioCategory.DAC_AMP]: DacAmpSpecsDto,
+};
+
 export class CreateProductDto {
   @IsString()
   @IsNotEmpty()
@@ -57,6 +84,10 @@ export class CreateProductDto {
   @IsString()
   @IsNotEmpty()
   categoryId: string;
+
+  @IsString()
+  @IsNotEmpty()
+  categorySlug: string;
 
   @IsString()
   @IsNotEmpty()
@@ -70,10 +101,10 @@ export class CreateProductDto {
   @Min(0)
   stock: number;
 
-  @IsNotEmpty()
   @ValidateNested()
-  @Type(() => SpecsDto)
-  specs: SpecsDto;
+  @IsNotEmpty()
+  @Type((opts) => specsMap[opts?.object.categorySlug as keyof typeof specsMap] ?? BaseSpecsDto)
+  specs: InEarSpecsDto | OverEarSpecsDto | DacAmpSpecsDto | BaseSpecsDto;
 
   @IsArray()
   @ArrayNotEmpty()

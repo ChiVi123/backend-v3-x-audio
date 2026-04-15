@@ -3,6 +3,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { ConfigService } from '@nestjs/config';
 import slugify from 'slugify';
 import type { CreateProductDto } from '~/applications/dtos/create-product.dto';
+import { createProductSpecsFactory } from '~/applications/specs/product-specs.factory';
 import { ProductStatus } from '~/core/entities/product.entity';
 // biome-ignore lint/style/useImportType: NestJS requires importing the class itself, not just its type
 import { CategoryRepository } from '~/core/repositories/category.repository';
@@ -10,7 +11,7 @@ import { CategoryRepository } from '~/core/repositories/category.repository';
 import { ProductRepository } from '~/core/repositories/product.repository';
 // biome-ignore lint/style/useImportType: NestJS requires importing the class itself, not just its type
 import { MediaService } from '~/core/services/media.service';
-import { toCategoryId, toDecibel, toHertz, toOhm, toProductId, toUsd } from '~/core/types/branded.type';
+import { toCategoryId, toProductId, toUsd } from '~/core/types/branded.type';
 import { CLOUDINARY_PRODUCT_FOLDER } from '~/infrastructure/constants/cloudinary';
 import type { EnvironmentVariables } from '~/infrastructure/validations/env.validation';
 
@@ -37,6 +38,9 @@ export class CreateProductUseCase {
     if (!categoryExists) throw new NotFoundException('Category not found');
     if (productExists) throw new BadRequestException('Product already exists');
 
+    const createSpecs = createProductSpecsFactory(dto.categorySlug);
+    const finalSpecs = createSpecs(dto);
+
     // Store product as draft and placeholder image
     const draftProduct = await this.productRepo.save({
       id: productId,
@@ -46,15 +50,7 @@ export class CreateProductUseCase {
       description: dto.description,
       price: toUsd(dto.price),
       stock: dto.stock,
-      specs: {
-        impedance: toOhm(dto.specs.impedance),
-        sensitivity: toDecibel(dto.specs.sensitivity),
-        frequencyResponse: {
-          min: toHertz(dto.specs.frequencyResponse.min),
-          max: toHertz(dto.specs.frequencyResponse.max),
-        },
-        driverType: dto.specs.driverType,
-      },
+      specs: finalSpecs,
       frGraphData: dto.frGraphData?.map((p) => [Number(p[0]), Number(p[1])]) ?? [],
       threeModelId: dto.threeModelId,
       status: ProductStatus.DRAFT,
