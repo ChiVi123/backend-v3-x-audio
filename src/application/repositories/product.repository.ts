@@ -41,12 +41,12 @@ type ImageInput = Pick<ImageEntity, 'id' | 'isPrimary'>;
 
 type ProductInput = Omit<ProductEntity, 'id' | 'createdAt' | 'updatedAt'>;
 
-export interface ProductWithCategoryAndSingleImage extends ProductEntity {
+export interface ProductWithCategoryAndSingleImage extends Omit<ProductEntity, 'categoryId'> {
   category: CategoryEntity;
-  image: ImageEntity;
+  image: ImageEntity | null;
 }
 
-export interface ProductWithCategoryAndMultipleImages extends ProductEntity {
+export interface ProductWithCategoryAndMultipleImages extends Omit<ProductEntity, 'categoryId'> {
   category: CategoryEntity;
   images: ImageEntity[];
 }
