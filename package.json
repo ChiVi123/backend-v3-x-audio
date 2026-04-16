@@ -7,10 +7,9 @@
   "license": "UNLICENSED",
   "scripts": {
     "build": "nest build",
+    "start": "cross-env NODE_ENV=development bun run src/main.ts",
     "start:dev": "cross-env NODE_ENV=development bun run --watch src/main.ts",
-    "start:test": "cross-env NODE_ENV=test bun run --watch src/main.ts",
     "start:dev:debug": "cross-env NODE_ENV=development bun run --debug --watch src/main.ts",
-    "start:test:debug": "cross-env NODE_ENV=test bun run --debug --watch src/main.ts",
     "start:prod": "cross-env NODE_ENV=production node dist/main",
     "test:unit": "cross-env NODE_ENV=test bun test --jobs=1 ./test/unit",
     "test:integration": "cross-env NODE_ENV=test bun test --jobs=1 ./test/integration",
@@ -19,8 +18,11 @@
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
+    "@nestjs/config": "^4.0.4",
     "@nestjs/core": "^11.0.1",
     "@nestjs/platform-express": "^11.0.1",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.15.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1"
   },
