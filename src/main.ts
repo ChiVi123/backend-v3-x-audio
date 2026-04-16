@@ -1,6 +1,7 @@
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
+import { GlobalExceptionsFilter } from '~/config/global-exception.filter';
 import { AppModule } from './app.module';
 import type { EnvironmentVariables } from './config/env.validation';
 
@@ -9,7 +10,14 @@ async function bootstrap() {
   const config = app.get(ConfigService<EnvironmentVariables>);
   const port = config.get('PORT', { infer: true }) ?? 3000;
 
-  app.useGlobalPipes(new ValidationPipe());
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  );
+  app.useGlobalFilters(new GlobalExceptionsFilter());
   await app.listen(port);
 
   Logger.log(`Environment: ${config.get('NODE_ENV', { infer: true })}`, 'Bootstrap');
