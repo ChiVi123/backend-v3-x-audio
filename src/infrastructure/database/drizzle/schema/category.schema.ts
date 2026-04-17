@@ -3,7 +3,7 @@ import type { CategoryId } from '~/domain/types/branded.type';
 import { timestamps } from '~/infrastructure/database/drizzle/schema/base.schema';
 
 export const categoryTable = pgTable('category', {
-  id: uuid('id').primaryKey().notNull().$type<CategoryId>(),
+  id: uuid('id').primaryKey().notNull().defaultRandom().$type<CategoryId>(),
   name: varchar('name', { length: 255 }).unique().notNull(),
   slug: varchar('slug', { length: 255 }).unique().notNull(),
   productCount: integer('product_count').default(0).notNull(),

@@ -7,7 +7,7 @@ import { categoryTable } from '~/infrastructure/database/drizzle/schema/category
 export const productStatusEnum = pgEnum('product_status', ['draft', 'live', 'archived']);
 
 export const productTable = pgTable('product', {
-  id: uuid('id').primaryKey().notNull().$type<ProductId>(),
+  id: uuid('id').primaryKey().notNull().defaultRandom().$type<ProductId>(),
   name: varchar('name', { length: 255 }).notNull(),
   slug: varchar('slug', { length: 255 }).unique().notNull(),
   categoryId: uuid('category_id')

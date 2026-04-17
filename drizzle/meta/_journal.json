@@ -29,6 +29,13 @@
       "when": 1776330404151,
       "tag": "0003_chilly_thanos",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1776399550672,
+      "tag": "0004_windy_vampiro",
+      "breakpoints": true
     }
   ]
 }

@@ -5,7 +5,7 @@ import { timestamps } from '~/infrastructure/database/drizzle/schema/base.schema
 export const imageStatusEnum = pgEnum('image_status', ['pending', 'uploaded', 'error']);
 
 export const imageTable = pgTable('image', {
-  id: uuid('id').primaryKey().notNull().$type<ImageId>(),
+  id: uuid('id').primaryKey().notNull().defaultRandom().$type<ImageId>(),
   url: varchar('url', { length: 255 }).notNull(),
   alt: varchar('alt', { length: 255 }).notNull(),
   remoteKey: varchar('remote_key', { length: 255 }),

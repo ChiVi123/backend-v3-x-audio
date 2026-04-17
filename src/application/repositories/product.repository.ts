@@ -17,9 +17,7 @@ export interface ProductRepository {
   existsByName(name: string): Promise<boolean>;
 }
 
-export interface CreateProductInput extends ProductInput {
-  file: Buffer;
-}
+export type CreateProductInput = Omit<ProductEntity, 'id' | 'createdAt' | 'updatedAt'>;
 
 /**
  * Update Product Input.
@@ -30,7 +28,7 @@ export interface CreateProductInput extends ProductInput {
  * @property removeImageIds - Image IDs to remove
  * @property images - Images to update
  */
-export interface UpdateProductInput extends Partial<ProductInput> {
+export interface UpdateProductInput extends Partial<CreateProductInput> {
   files?: Buffer[];
   keepImages: ImageInput[];
   removeImageIds?: ImageId[];
@@ -38,8 +36,6 @@ export interface UpdateProductInput extends Partial<ProductInput> {
 }
 
 type ImageInput = Pick<ImageEntity, 'id' | 'isPrimary'>;
-
-type ProductInput = Omit<ProductEntity, 'id' | 'createdAt' | 'updatedAt'>;
 
 export interface ProductWithCategoryAndSingleImage extends Omit<ProductEntity, 'categoryId'> {
   category: CategoryEntity;
