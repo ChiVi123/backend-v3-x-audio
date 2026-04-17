@@ -14,8 +14,8 @@ export const productImageTable = pgTable(
       .notNull(),
     isPrimary: boolean('is_primary').default(false).notNull(),
   },
-  (t) => ({
-    pk: primaryKey({ columns: [t.productId, t.imageId] }),
-    uniquePrimaryIdx: uniqueIndex('unique_primary_image_per_product').on(t.productId).where(sql`is_primary=true`),
-  }),
+  (t) => [
+    primaryKey({ columns: [t.productId, t.imageId] }),
+    uniqueIndex('unique_primary_image_per_product').on(t.productId).where(sql`is_primary=true`),
+  ],
 );

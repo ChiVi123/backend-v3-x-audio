@@ -4,6 +4,7 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import type { EnvironmentVariables } from '~/config/env.validation';
 import { DRIZZLE_TOKEN } from '~/infrastructure/constants/drizzle';
+import * as relations from '~/infrastructure/database/drizzle/relations';
 import * as schema from '~/infrastructure/database/drizzle/schema';
 
 export const DrizzleProvider: Provider = {
@@ -13,9 +14,9 @@ export const DrizzleProvider: Provider = {
     const pool = new Pool({
       connectionString: databaseUrl,
     });
-    return drizzle(pool, { casing: 'snake_case', schema });
+    return drizzle(pool, { casing: 'snake_case', schema: { ...schema, ...relations } });
   },
   inject: [ConfigService],
 };
 
-export type DrizzleSchema = typeof schema;
+export type DrizzleSchema = typeof schema & typeof relations;

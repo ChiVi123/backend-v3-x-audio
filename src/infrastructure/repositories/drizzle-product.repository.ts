@@ -8,6 +8,7 @@ import type {
   ProductWithCategoryAndSingleImage,
   UpdateProductInput,
 } from '~/application/repositories/product.repository';
+import type { ImageStatus } from '~/domain/enums/image.enum';
 import type { ProductStatus } from '~/domain/enums/product.enum';
 import { type ProductId, toCategoryId } from '~/domain/types/branded.type';
 import { DRIZZLE_TOKEN } from '~/infrastructure/constants/drizzle';
@@ -30,32 +31,85 @@ export class DrizzleProductRepository implements ProductRepository {
     throw new Error('Method not implemented.');
   }
 
-  findById(id: ProductId): Promise<ProductWithCategoryAndMultipleImages | null> {
-    throw new Error('Method not implemented.');
+  async findById(id: ProductId): Promise<ProductWithCategoryAndMultipleImages | null> {
+    const product = await this.db.query.productTable.findFirst({
+      where: (p) => eq(p.id, id),
+      with: {
+        category: true,
+        productImages: {
+          with: {
+            image: true,
+          },
+        },
+      },
+    });
+
+    if (!product) {
+      return null;
+    }
+
+    const { category, productImages, ...p } = product;
+    return {
+      ...p,
+      threeModelId: p.threeModelId ?? undefined,
+      status: p.status as ProductStatus,
+      updatedAt: p.updatedAt ?? undefined,
+      category: {
+        ...category,
+        description: category.description ?? '',
+        parentId: category.parentId ? toCategoryId(category.parentId) : undefined,
+        updatedAt: category.updatedAt ?? undefined,
+      },
+      images: productImages.map(({ image, isPrimary }) => ({
+        ...image,
+        remoteKey: image.remoteKey ?? undefined,
+        provider: image.provider ?? undefined,
+        metadata: image.metadata ?? undefined,
+        updatedAt: image.updatedAt ?? undefined,
+        status: image.status as ImageStatus,
+        isPrimary,
+      })),
+    };
   }
 
   async findAll(): Promise<ProductWithCategoryAndSingleImage[]> {
-    const result = await this.db
-      .select({
-        product: productTable,
-        category: categoryTable,
-      })
-      .from(productTable)
-      .innerJoin(categoryTable, eq(productTable.categoryId, categoryTable.id));
-
-    return result.map((r) => ({
-      ...r.product,
-      threeModelId: r.product.threeModelId ?? undefined,
-      status: r.product.status as ProductStatus,
-      updatedAt: r.product.updatedAt ?? undefined,
-      category: {
-        ...r.category,
-        description: r.category.description ?? '',
-        parentId: r.category.parentId ? toCategoryId(r.category.parentId) : undefined,
-        updatedAt: r.category.updatedAt ?? undefined,
+    const products = await this.db.query.productTable.findMany({
+      with: {
+        category: true,
+        productImages: {
+          where: (pi) => eq(pi.isPrimary, true),
+          limit: 1,
+          with: {
+            image: true,
+          },
+        },
       },
-      image: null,
-    }));
+    });
+
+    return products.map(({ category, productImages, ...p }) => {
+      const { image, isPrimary } = productImages[0] ?? {};
+      return {
+        ...p,
+        threeModelId: p.threeModelId ?? undefined,
+        status: p.status as ProductStatus,
+        updatedAt: p.updatedAt ?? undefined,
+        category: {
+          ...category,
+          description: category.description ?? '',
+          parentId: category.parentId ? toCategoryId(category.parentId) : undefined,
+          updatedAt: category.updatedAt ?? undefined,
+        },
+        image: {
+          ...image,
+          remoteKey: image.remoteKey ?? undefined,
+          provider: image.provider ?? undefined,
+          metadata: image.metadata ?? undefined,
+          updatedAt: image.updatedAt ?? undefined,
+          status: image.status as ImageStatus,
+          isPrimary,
+        },
+      };
+    });
   }
 
   existsByName(name: string): Promise<boolean> {
