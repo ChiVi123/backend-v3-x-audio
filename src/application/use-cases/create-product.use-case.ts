@@ -1,4 +1,5 @@
 import { Logger } from '@nestjs/common';
+import slugify from 'slugify';
 import { PENDING_IMAGE_DEFAULT } from '~/application/constants/default-value';
 import { ConflictException } from '~/application/exceptions/conflict.exception';
 import type { ImageRepository } from '~/application/repositories/image.repository';
@@ -19,13 +20,18 @@ export class CreateProductUseCase {
     private readonly mediaService: MediaService<ImageResponse>,
   ) {}
 
-  async execute(input: CreateProductInput, file: FileUpload): Promise<ProductWithCategoryAndMultipleImages> {
+  async execute(
+    input: Omit<CreateProductInput, 'slug'>,
+    file: FileUpload,
+  ): Promise<ProductWithCategoryAndMultipleImages> {
     const exists = await this.productRepository.existsByName(input.name);
     if (exists) {
       throw new ConflictException('Product', 'name', input.name);
     }
 
-    let product = await this.productRepository.create({ ...input, status: ProductStatus.DRAFT });
+    const slug = slugify(input.name, { lower: true });
+
+    let product = await this.productRepository.create({ ...input, slug, status: ProductStatus.DRAFT });
     const image = await this.imageRepository.create({
       ...PENDING_IMAGE_DEFAULT,
       status: ImageStatus.PENDING,
