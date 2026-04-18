@@ -17,7 +17,7 @@ export interface ProductRepository {
   existsByName(name: string): Promise<boolean>;
 }
 
-export type CreateProductInput = Omit<ProductEntity, 'id' | 'createdAt' | 'updatedAt'>;
+export type CreateProductInput = Omit<ProductEntity, 'id' | 'slug' | 'createdAt' | 'updatedAt'>;
 
 /**
  * Update Product Input.

@@ -12,7 +12,6 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type {
-  CreateProductInput,
   ProductWithCategoryAndMultipleImages,
   ProductWithCategoryAndSingleImage,
 } from '~/application/repositories/product.repository';
@@ -23,6 +22,7 @@ import { GetListProductUseCase } from '~/application/use-cases/get-list-product.
 // biome-ignore lint/style/useImportType: NestJS DI uses reflect-metadata to resolve this class as a runtime token; `import type` would erase it at compile time, breaking dependency injection
 import { GetProductByIdUseCase } from '~/application/use-cases/get-product-by-id.use-case';
 import type { ProductId } from '~/domain/types/branded.type';
+import type { CreateProductDto } from '~/presentation/dtos/create-product.dto';
 
 @Controller('products')
 export class ProductController {
@@ -45,7 +45,7 @@ export class ProductController {
   @Post()
   @UseInterceptors(FileInterceptor('file'))
   async create(
-    @Body() input: CreateProductInput,
+    @Body() input: CreateProductDto,
     @UploadedFile(
       new ParseFilePipe({
         validators: [
