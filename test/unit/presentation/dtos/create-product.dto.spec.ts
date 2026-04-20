@@ -23,6 +23,7 @@ describe('CreateProductDto', () => {
       [1000, 5],
     ],
     status: ProductStatus.DRAFT,
+    images: [{ alt: 'Img 1', isPrimary: true }],
   };
 
   it('should pass validation with valid data', async () => {
@@ -156,6 +157,24 @@ describe('CreateProductDto', () => {
       const errors = await validate(dto);
       expect(errors.some((e) => e.property === 'threeModelId')).toBe(true);
       expect(errors.some((e) => e.property === 'aiGenerated')).toBe(true);
+    });
+  });
+
+  describe('images validation', () => {
+    it('should fail when images is missing', async () => {
+      const { images, ...rest } = validData;
+      const dto = plainToInstance(CreateProductDto, rest);
+      const errors = await validate(dto);
+      expect(errors.some((e) => e.property === 'images')).toBe(true);
+    });
+
+    it('should fail when images contains invalid data', async () => {
+      const dto = plainToInstance(CreateProductDto, {
+        ...validData,
+        images: [{ alt: '' }], // Empty alt
+      });
+      const errors = await validate(dto);
+      expect(errors.some((e) => e.property === 'images')).toBe(true);
     });
   });
 });

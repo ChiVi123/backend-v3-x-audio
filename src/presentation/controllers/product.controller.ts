@@ -76,6 +76,7 @@ export class ProductController {
           new MaxFileSizeValidator({ maxSize: MAX_IMAGE_FILE_SIZE }),
           new FileTypeValidator({ fileType: ALLOWED_IMAGE_MIME_TYPES }),
         ],
+        fileIsRequired: false,
       }),
     )
     files: Express.Multer.File[],

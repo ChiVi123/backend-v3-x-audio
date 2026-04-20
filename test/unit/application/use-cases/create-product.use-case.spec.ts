@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, mock } from 'bun:test';
 import { PENDING_IMAGE_DEFAULT } from '~/application/constants/default-value';
+import { BadRequestException } from '~/application/exceptions/bad-request.exception';
 import { ConflictException } from '~/application/exceptions/conflict.exception';
-import type { FileUpload, ImageResponse } from '~/application/types/media.type';
+import type { FileUpload } from '~/application/types/media.type';
 import { CreateProductUseCase } from '~/application/use-cases/create-product.use-case';
 import { ImageStatus } from '~/domain/enums/image.enum';
 import { ProductStatus } from '~/domain/enums/product.enum';
@@ -9,146 +10,143 @@ import { ProductStatus } from '~/domain/enums/product.enum';
 describe('CreateProductUseCase', () => {
   let useCase: CreateProductUseCase;
 
-  // biome-ignore lint/suspicious/noExplicitAny: Mocking dependencies for testing
+  // biome-ignore lint/suspicious/noExplicitAny: Mocking dependencies
   let mockProductRepository: any;
-  // biome-ignore lint/suspicious/noExplicitAny: Mocking dependencies for testing
+  // biome-ignore lint/suspicious/noExplicitAny: Mocking dependencies
   let mockImageRepository: any;
-  // biome-ignore lint/suspicious/noExplicitAny: Mocking dependencies for testing
+  // biome-ignore lint/suspicious/noExplicitAny: Mocking dependencies
   let mockMediaService: any;
+  // biome-ignore lint/suspicious/noExplicitAny: Mocking dependencies
+  let mockSlugifyService: any;
+  // biome-ignore lint/suspicious/noExplicitAny: Mocking dependencies
+  let mockLogger: any;
 
   beforeEach(() => {
-    // Initialize mock objects
     mockProductRepository = {
       create: mock(),
       update: mock(),
-      delete: mock(),
-      findById: mock(),
-      findAll: mock(),
-      existsByName: mock(),
+      existsByName: mock().mockResolvedValue(false),
     };
 
     mockImageRepository = {
-      create: mock(),
       createMany: mock(),
-      update: mock(),
       updateMany: mock(),
-      delete: mock(),
       deleteMany: mock(),
-      findByRemoteKey: mock(),
     };
 
     mockMediaService = {
-      upload: mock(),
-      delete: mock(),
+      uploadMultiple: mock(),
     };
 
-    useCase = new CreateProductUseCase(mockProductRepository, mockImageRepository, mockMediaService);
+    mockSlugifyService = {
+      slugify: mock((name: string) => name.toLowerCase().replace(/ /g, '-')),
+    };
+
+    mockLogger = {
+      error: mock(),
+      log: mock(),
+    };
+
+    useCase = new CreateProductUseCase(
+      mockProductRepository,
+      mockImageRepository,
+      mockMediaService,
+      mockSlugifyService,
+      mockLogger,
+    );
   });
 
   const mockInput = {
     name: 'Test Product',
-    slug: 'test-product',
-    categoryId: 'uuid-1',
-    description: 'Test description',
-    price: 1000,
+    categoryId: 'cat-1',
+    description: 'Desc',
+    price: 100,
     stock: 10,
     specs: {},
     frGraphData: [],
-    status: ProductStatus.PUBLISHED, // Assume client requested LIVE status
+    status: ProductStatus.PUBLISHED,
+    images: [{ alt: 'Img 1', isPrimary: true }],
   };
 
-  const mockFile: FileUpload = {
-    buffer: Buffer.from('test image'),
-    originalname: 'test.jpg',
-  };
+  const mockFiles: FileUpload[] = [
+    { buffer: Buffer.from('test'), originalname: 'test.jpg' },
+  ];
 
   it('should throw ConflictException if product name already exists', async () => {
     mockProductRepository.existsByName.mockResolvedValue(true);
 
-    // biome-ignore lint/suspicious/noExplicitAny: Mocking input
-    expect(useCase.execute(mockInput as any, mockFile)).rejects.toThrow(ConflictException);
+    expect(useCase.execute(mockInput as any, mockFiles)).rejects.toThrow(ConflictException);
     expect(mockProductRepository.existsByName).toHaveBeenCalledWith(mockInput.name);
-    expect(mockProductRepository.create).not.toHaveBeenCalled();
   });
 
-  it('should create product as Draft and perform upload', async () => {
-    // Prepare mock return results
-    const draftProduct = { id: 'prod-1', ...mockInput };
-    const pendingImage = { id: 'img-1', ...PENDING_IMAGE_DEFAULT, status: ImageStatus.PENDING };
-    const uploadedImage: ImageResponse = {
-      remoteKey: 'cloud-key',
-      url: 'https://cloudinary.com/test.jpg',
-      alt: 'test.jpg',
-      provider: 'cloudinary',
-      metadata: { width: 100, height: 100, format: 'jpg', bytes: 1000 },
-    };
+  it('should throw BadRequestException if images metadata and files length mismatch', async () => {
+    const invalidFiles: FileUpload[] = []; // Zero files for 1 metadata entry
 
-    mockProductRepository.existsByName.mockResolvedValue(false);
-    mockProductRepository.create.mockResolvedValue(draftProduct);
-    mockImageRepository.create.mockResolvedValue(pendingImage);
-    mockMediaService.upload.mockResolvedValue(uploadedImage);
-    mockProductRepository.update.mockResolvedValue({});
-    mockImageRepository.update.mockResolvedValue({});
+    expect(useCase.execute(mockInput as any, invalidFiles)).rejects.toThrow(BadRequestException);
+  });
 
-    // Execute Use Case
-    // biome-ignore lint/suspicious/noExplicitAny: Mocking input
-    await useCase.execute(mockInput as any, mockFile);
+  it('should create product successfully', async () => {
+    const pendingImages = [{ id: 'img-1' }];
+    const createdProduct = { id: 'prod-1', ...mockInput };
+    const uploadResult = [
+      {
+        status: 'fulfilled',
+        value: { url: 'http://res.com', remoteKey: 'k1' },
+      },
+    ];
 
-    // Step 1: Check for existing product name
-    expect(mockProductRepository.existsByName).toHaveBeenCalledWith(mockInput.name);
+    mockImageRepository.createMany.mockResolvedValue(pendingImages);
+    mockProductRepository.create.mockResolvedValue(createdProduct);
+    mockMediaService.uploadMultiple.mockResolvedValue(uploadResult);
 
-    // Step 2: Create DRAFT product and PENDING image
-    expect(mockProductRepository.create).toHaveBeenCalledWith({
+    const result = await useCase.execute(mockInput as any, mockFiles);
+
+    expect(mockImageRepository.createMany).toHaveBeenCalled();
+    expect(mockProductRepository.create).toHaveBeenCalledWith(expect.objectContaining({
+      slug: 'test-product',
+      images: [{ id: 'img-1', isPrimary: true }],
+    }));
+    expect(mockMediaService.uploadMultiple).toHaveBeenCalledWith(mockFiles);
+    expect(mockImageRepository.updateMany).toHaveBeenCalledWith([
+      { id: 'img-1', url: 'http://res.com', remoteKey: 'k1', status: ImageStatus.UPLOADED },
+    ]);
+    expect(result).toEqual(createdProduct as any);
+  });
+
+  it('should handle partial upload failures', async () => {
+    const pendingImages = [{ id: 'img-1' }, { id: 'img-2' }];
+    const inputWithTwoImages = {
       ...mockInput,
-      status: ProductStatus.DRAFT,
-      // biome-ignore lint/suspicious/noExplicitAny: Mocking input
-    } as any);
-    expect(mockImageRepository.create).toHaveBeenCalledWith({
-      ...PENDING_IMAGE_DEFAULT,
-      status: ImageStatus.PENDING,
-    });
+      images: [{ alt: 'A1' }, { alt: 'A2' }],
+    };
+    const twoFiles = [mockFiles[0], mockFiles[0]];
+    const uploadResults = [
+      { status: 'fulfilled', value: { url: 'u1', remoteKey: 'k1' } },
+      { status: 'rejected', reason: new Error('Upload failed') },
+    ];
 
-    // Step 3: Upload to Cloudinary
-    expect(mockMediaService.upload).toHaveBeenCalledWith(mockFile);
+    mockImageRepository.createMany.mockResolvedValue(pendingImages);
+    mockMediaService.uploadMultiple.mockResolvedValue(uploadResults);
 
-    // Step 4: Update status of Product and Image after successful upload
-    expect(mockProductRepository.update).toHaveBeenCalledWith('prod-1', {
-      status: ProductStatus.PUBLISHED,
-      keepImages: [{ id: pendingImage.id, isPrimary: true }],
-    });
+    await useCase.execute(inputWithTwoImages as any, twoFiles);
 
-    // Save Cloudinary results to DB
-    expect(mockImageRepository.update).toHaveBeenCalledWith('img-1', {
-      ...uploadedImage,
-      status: ImageStatus.UPLOADED,
-    });
+    expect(mockImageRepository.deleteMany).toHaveBeenCalledWith(['img-2']);
+    expect(mockImageRepository.updateMany).toHaveBeenCalledWith([
+      { id: 'img-1', url: 'u1', remoteKey: 'k1', status: ImageStatus.UPLOADED },
+    ]);
   });
 
-  it('should swallow upload error and return draft product (Saga pattern)', async () => {
-    const draftProduct = { id: 'prod-1', ...mockInput };
-    const pendingImage = { id: 'img-1', ...PENDING_IMAGE_DEFAULT };
+  it('should fallback to draft if critical error occurs in saga', async () => {
+    const pendingImages = [{ id: 'img-1' }];
+    mockImageRepository.createMany.mockResolvedValue(pendingImages);
+    mockProductRepository.create.mockResolvedValue({ id: 'prod-1' });
+    mockMediaService.uploadMultiple.mockRejectedValue(new Error('Network error'));
 
-    mockProductRepository.existsByName.mockResolvedValue(false);
-    mockProductRepository.create.mockResolvedValue(draftProduct);
-    mockImageRepository.create.mockResolvedValue(pendingImage);
+    await useCase.execute(mockInput as any, mockFiles);
 
-    // Force upload to fail
-    mockMediaService.upload.mockRejectedValue(new Error('Cloudinary timeout'));
-
-    // Execute Use Case
-    // biome-ignore lint/suspicious/noExplicitAny: Mocking input
-    const result = await useCase.execute(mockInput as any, mockFile);
-
-    // Draft creations should still succeed
-    expect(mockProductRepository.create).toHaveBeenCalled();
-    expect(mockImageRepository.create).toHaveBeenCalled();
-
-    // Use Case should not throw, but instead return the draft product
-    // biome-ignore lint/suspicious/noExplicitAny: Mocking input
-    expect(result).toEqual(draftProduct as any);
-
-    // Update DB should never be called due to failed upload
-    expect(mockProductRepository.update).not.toHaveBeenCalled();
-    expect(mockImageRepository.update).not.toHaveBeenCalled();
+    expect(mockImageRepository.deleteMany).toHaveBeenCalledWith(['img-1']);
+    expect(mockProductRepository.update).toHaveBeenCalledWith('prod-1', {
+      status: ProductStatus.DRAFT,
+    });
   });
 });

@@ -28,7 +28,8 @@ export class UpdateProductUseCase {
       throw new NotFoundException('Product', 'id', id);
     }
 
-    if (newImagesMetadata?.length !== files.length) {
+    const newImagesCount = newImagesMetadata?.length ?? 0;
+    if (newImagesCount !== files.length) {
       throw new BadRequestException('New images metadata and files must have the same length');
     }
 
