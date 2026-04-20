@@ -20,26 +20,42 @@ import { productImageTable, productTable } from '~/infrastructure/database/drizz
 export class DrizzleProductRepository implements ProductRepository {
   constructor(@Inject(DRIZZLE_TOKEN) private readonly db: NodePgDatabase<DrizzleSchema>) {}
 
-  async create(product: CreateProductInput): Promise<ProductWithCategoryAndMultipleImages> {
-    const result = await this.db.insert(productTable).values(product).returning();
-    const createdProduct = await this.findById(result[0].id);
-    if (!createdProduct) {
-      throw new InternalServerErrorException('Failed to create product');
-    }
-    return createdProduct;
+  async create(input: CreateProductInput): Promise<ProductWithCategoryAndMultipleImages> {
+    const { images, ...product } = input;
+    const result = await this.db.transaction(async (tx) => {
+      const result = await tx.insert(productTable).values(product).returning();
+      const createdProduct = await this.findById(result[0].id);
+      if (!createdProduct) {
+        throw new InternalServerErrorException('Failed to create product');
+      }
+      for (const image of images) {
+        await tx
+          .insert(productImageTable)
+          .values({
+            productId: createdProduct.id,
+            imageId: image.id,
+            isPrimary: image.isPrimary,
+          })
+          .onConflictDoUpdate({
+            target: [productImageTable.productId, productImageTable.imageId],
+            set: { isPrimary: image.isPrimary ?? false },
+          });
+      }
+      return createdProduct;
+    });
+
+    return result;
   }
 
   async update(
     id: ProductId,
-    { keepImages, images, removeImageIds, ...product }: UpdateProductInput,
+    { keepImages, newImages, removeImageIds, ...product }: UpdateProductInput,
   ): Promise<ProductWithCategoryAndMultipleImages> {
     return this.db.transaction(async (tx) => {
-      // 1. Update Product information if provided
       if (Object.keys(product).length > 0) {
         await tx.update(productTable).set(product).where(eq(productTable.id, id));
       }
 
-      // 2. Link Keep Images (like the newly uploaded image)
       if (keepImages && keepImages.length > 0) {
         for (const image of keepImages) {
           await tx
@@ -49,7 +65,6 @@ export class DrizzleProductRepository implements ProductRepository {
               imageId: image.id,
               isPrimary: image.isPrimary ?? false,
             })
-            // If the relation already exists, update its primary status
             .onConflictDoUpdate({
               target: [productImageTable.productId, productImageTable.imageId],
               set: { isPrimary: image.isPrimary ?? false },
@@ -187,6 +202,15 @@ export class DrizzleProductRepository implements ProductRepository {
   async existsByName(name: string): Promise<boolean> {
     const query = sql`SELECT EXISTS (
       SELECT 1 FROM ${productTable} WHERE ${productTable.name} = ${name}
+    )`;
+
+    const result = await this.db.execute<{ exists: boolean }>(query);
+    return result.rows[0].exists;
+  }
+
+  async existsById(id: ProductId): Promise<boolean> {
+    const query = sql`SELECT EXISTS (
+      SELECT 1 FROM ${productTable} WHERE ${productTable.id} = ${id}
     )`;
 
     const result = await this.db.execute<{ exists: boolean }>(query);

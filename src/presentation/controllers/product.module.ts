@@ -6,6 +6,7 @@ import type { ImageResponse } from '~/application/types/media.type';
 import { CreateProductUseCase } from '~/application/use-cases/create-product.use-case';
 import { GetListProductUseCase } from '~/application/use-cases/get-list-product.use-case';
 import { GetProductByIdUseCase } from '~/application/use-cases/get-product-by-id.use-case';
+import { UpdateProductUseCase } from '~/application/use-cases/update-product.use-case';
 import { CloudinaryModule } from '~/infrastructure/cloudinary/cloudinary.module';
 import {
   IMAGE_REPOSITORY_TOKEN,
@@ -35,6 +36,15 @@ import { ProductController } from '~/presentation/controllers/product.controller
         imageRepository: ImageRepository,
         mediaService: MediaService<ImageResponse>,
       ) => new CreateProductUseCase(productRepository, imageRepository, mediaService),
+      inject: [PRODUCT_REPOSITORY_TOKEN, IMAGE_REPOSITORY_TOKEN, MEDIA_SERVICE_TOKEN],
+    },
+    {
+      provide: UpdateProductUseCase,
+      useFactory: (
+        productRepository: ProductRepository,
+        imageRepository: ImageRepository,
+        mediaService: MediaService<ImageResponse>,
+      ) => new UpdateProductUseCase(productRepository, imageRepository, mediaService),
       inject: [PRODUCT_REPOSITORY_TOKEN, IMAGE_REPOSITORY_TOKEN, MEDIA_SERVICE_TOKEN],
     },
   ],

@@ -14,24 +14,27 @@ export interface ProductRepository {
   delete(id: ProductId): Promise<void>;
   findById(id: ProductId): Promise<ProductWithCategoryAndMultipleImages | null>;
   findAll(): Promise<ProductWithCategoryAndSingleImage[]>;
+  existsById(id: ProductId): Promise<boolean>;
   existsByName(name: string): Promise<boolean>;
 }
 
-export type CreateProductInput = Omit<ProductEntity, 'id' | 'createdAt' | 'updatedAt'>;
+/**
+ * Input for Product creation.
+ */
+export interface CreateProductInput extends Omit<ProductEntity, 'id' | 'createdAt' | 'updatedAt'> {
+  images: Pick<ImageEntity, 'id' | 'isPrimary'>[];
+}
 
 /**
  * Update Product Input.
- *
- * **Important**: Careful with this interface, it's a bit complex. Create unit test for this interface.
- * @property files - Files to upload
- * @property keepImages - Images to keep
- * @property removeImageIds - Image IDs to remove
- * @property images - Images to update
  */
-export interface UpdateProductInput extends Partial<CreateProductInput> {
-  keepImages: ImageInput[];
+export interface UpdateProductInput extends Partial<Omit<CreateProductInput, 'images'>> {
+  /** Images to keep or update (isPrimary) */
+  keepImages?: { id: ImageId; isPrimary?: boolean }[];
+  /** NEW Image metadata (matches files index) */
+  newImages?: { isPrimary?: boolean; alt?: string }[];
+  /** IDs of images to remove from DB and Storage */
   removeImageIds?: ImageId[];
-  images?: Pick<ImageEntity, 'isPrimary'>[];
 }
 
 export type ImageInput = Pick<ImageEntity, 'id' | 'isPrimary'>;

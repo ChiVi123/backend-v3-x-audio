@@ -1,8 +1,9 @@
-import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 // biome-ignore lint/style/useImportType: NestJS DI uses reflect-metadata to resolve this class as a runtime token; `import type` would erase it at compile time, breaking dependency injection
 import { ConfigService } from '@nestjs/config';
 import { v2 as cloudinary, type UploadApiResponse } from 'cloudinary';
 import streamifier from 'streamifier';
+import { InternalServerErrorException } from '~/application/exceptions/internal-server-error.exception';
 import type { MediaService } from '~/application/services/media.service';
 import type { FileUpload, ImageResponse } from '~/application/types/media.type';
 import type { EnvironmentVariables } from '~/config/env.validation';
@@ -31,7 +32,7 @@ export class CloudinaryService implements MediaService<ImageResponse> {
         (error, result: UploadApiResponse | undefined) => {
           if (error || !result) {
             Logger.error(error, 'CloudinaryService.upload');
-            reject(new InternalServerErrorException('Error when upload image to Cloudinary'));
+            reject(new InternalServerErrorException(`Error when upload image ${file.originalname} to Cloudinary`));
             return;
           }
 
@@ -54,12 +55,26 @@ export class CloudinaryService implements MediaService<ImageResponse> {
     });
   }
 
+  async uploadMultiple(files: FileUpload[]): Promise<PromiseSettledResult<ImageResponse>[]> {
+    const result = await Promise.allSettled(files.map((file) => this.upload(file)));
+    return result;
+  }
+
   async delete(key: string): Promise<void> {
     try {
       await cloudinary.uploader.destroy(key);
     } catch (e) {
       Logger.error(e, 'CloudinaryService.delete');
-      throw new InternalServerErrorException("Can't delete image from Cloudinary");
+      throw new InternalServerErrorException(`Can't delete image from Cloudinary: ${key}`);
+    }
+  }
+
+  async deleteMultiple(keys: string[]): Promise<void> {
+    try {
+      await cloudinary.api.delete_resources(keys);
+    } catch (e) {
+      Logger.error(e, 'CloudinaryService.deleteMultiple');
+      throw new InternalServerErrorException(`Can't delete images from Cloudinary: ${keys.join(', ')}`);
     }
   }
 }

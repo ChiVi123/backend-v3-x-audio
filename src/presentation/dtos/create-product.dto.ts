@@ -1,5 +1,6 @@
 import { Type } from 'class-transformer';
 import {
+  IsArray,
   IsBoolean,
   IsEnum,
   IsInt,
@@ -11,7 +12,8 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
-import type { CreateProductInput } from '~/application/repositories/product.repository';
+import type { CreateProductUseCaseInput } from '~/application/use-cases/create-product.use-case';
+import type { ImageEntity } from '~/domain/entities/image.entity';
 import type { ProductSpecs } from '~/domain/entities/product.entity';
 import { DriverType, ProductStatus } from '~/domain/enums/product.enum';
 import type { CategoryId, Decibel, Hertz, Ohm } from '~/domain/types/branded.type';
@@ -52,7 +54,17 @@ class ProductSpecsDto implements ProductSpecs {
   [key: string]: unknown;
 }
 
-export class CreateProductDto implements CreateProductInput {
+class ImageDto implements Pick<ImageEntity, 'alt' | 'isPrimary'> {
+  @IsNotEmpty()
+  @IsString()
+  alt: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isPrimary?: boolean;
+}
+
+export class CreateProductDto implements CreateProductUseCaseInput {
   @IsNotEmpty()
   @IsString()
   name: string;
@@ -96,4 +108,10 @@ export class CreateProductDto implements CreateProductInput {
   @IsNotEmpty()
   @IsEnum(ProductStatus)
   status: ProductStatus;
+
+  @IsNotEmpty()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ImageDto)
+  images: ImageDto[];
 }
