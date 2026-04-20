@@ -4,7 +4,8 @@
 @formType = multipart/form-data; boundary=MimeBoundary
 @email=tester@example.com
 @password=Password123!
-@categoryId=00000000-0000-0000-0000-000000000001
+@categoryId=11111111-0000-0000-0000-000000000013
+@productId=00000000-0000-0000-0000-000000000001
 
 ### Register
 POST {{baseUrl}}/auth/register
@@ -42,6 +43,9 @@ Content-Type: {{jsonType}}
 ### Store admin token
 @accessToken={{adminLoginRequest.response.body.access_token}}
 
+### Get List Products
+GET {{baseUrl}}/products
+
 ### Create Product
 POST {{baseUrl}}/products
 Content-Type: {{formType}}
@@ -63,6 +67,10 @@ Content-Disposition: form-data; name="price"
 Content-Disposition: form-data; name="stock"
 
 50
+--MimeBoundary
+Content-Disposition: form-data; name="status"
+
+live
 --MimeBoundary
 Content-Disposition: form-data; name="description"
 
@@ -87,14 +95,46 @@ Content-Disposition: form-data; name="frGraphData"
 Content-Disposition: form-data; name="images"
 
 [
-  { "isPrimary": true }
+  { "alt": "Sony WH-1000XM5 Black Main View", "isPrimary": true }
 ]
 --MimeBoundary
-Content-Disposition: form-data; name="files"; filename="Sony-WH-1000XM5-Black-1.jpg"
-Content-Type: image/jpg
+Content-Disposition: form-data; name="files"; filename="Sony-WH-1000XM5-Black-1.png"
+Content-Type: image/png
 
-< ./assets/Sony-WH-1000XM5-Black-1.jpg
+< ./assets/Sony-WH-1000XM5-Black-1.png
 --MimeBoundary--
 
-### Get List Products
-GET {{baseUrl}}/products
+### Get Product by ID
+GET {{baseUrl}}/products/{{productId}}
+
+### Update Product
+PATCH {{baseUrl}}/products/{{productId}}
+Content-Type: {{formType}}
+Authorization: Bearer {{accessToken}}
+
+--MimeBoundary
+Content-Disposition: form-data; name="name"
+
+Sony WH-1000XM5 Black (Updated)
+--MimeBoundary
+Content-Disposition: form-data; name="price"
+
+1450
+--MimeBoundary
+Content-Disposition: form-data; name="keepImages"
+
+[
+  { "id": "00000000-0000-0000-0000-000000000001", "isPrimary": true }
+]
+--MimeBoundary
+Content-Disposition: form-data; name="newImages"
+
+[
+  { "alt": "Sony WH-1000XM5 Black Side View", "isPrimary": false }
+]
+--MimeBoundary
+Content-Disposition: form-data; name="files"; filename="Sony-WH-1000XM5-Black-2.png"
+Content-Type: image/png
+
+< ./assets/Sony-WH-1000XM5-Black-2.png
+--MimeBoundary--

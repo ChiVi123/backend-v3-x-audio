@@ -28,15 +28,15 @@ async function main() {
 
   // ── 2. Images ─────────────────────────────────────────────────────────────
   logger.log('Seeding images...');
-  await seedImages(db);
+  // await seedImages(db);
 
   // ── 3. Products ───────────────────────────────────────────────────────────
   logger.log('Seeding products...');
-  await seedProducts(db);
+  // await seedProducts(db);
 
   // ── 4. Product Images (junction table) ────────────────────────────────────
   logger.log('Seeding product images...');
-  await seedProductImages(db);
+  // await seedProductImages(db);
 
   logger.log('Done! Database seeded successfully. ✅');
 }

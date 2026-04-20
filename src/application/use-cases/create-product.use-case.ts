@@ -1,6 +1,7 @@
 import { PENDING_IMAGE_DEFAULT } from '~/application/constants/default-value';
 import { BadRequestException } from '~/application/exceptions/bad-request.exception';
 import { ConflictException } from '~/application/exceptions/conflict.exception';
+import { InternalServerErrorException } from '~/application/exceptions/internal-server-error.exception';
 import type { ImageRepository, UpdateManyImageInput } from '~/application/repositories/image.repository';
 import type {
   CreateProductInput,
@@ -80,6 +81,13 @@ export class CreateProductUseCase {
       }
 
       await this.imageRepository.updateMany(imageSuccess);
+
+      // 5. Re-fetch product to get updated image status and URLs
+      const updatedProduct = await this.productRepository.findById(product.id);
+      if (!updatedProduct) {
+        throw new InternalServerErrorException('Failed to retrieve updated product after image upload');
+      }
+      product = updatedProduct;
     } catch (error) {
       this.logger.error(error);
       // Delete all pending image are error

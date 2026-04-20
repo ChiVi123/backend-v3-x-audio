@@ -23,16 +23,14 @@ export class DrizzleProductRepository implements ProductRepository {
   async create(input: CreateProductInput): Promise<ProductWithCategoryAndMultipleImages> {
     const { images, ...product } = input;
     const result = await this.db.transaction(async (tx) => {
-      const result = await tx.insert(productTable).values(product).returning();
-      const createdProduct = await this.findById(result[0].id);
-      if (!createdProduct) {
-        throw new InternalServerErrorException('Failed to create product');
-      }
+      const inserted = await tx.insert(productTable).values(product).returning();
+      const productId = inserted[0].id;
+
       for (const image of images) {
         await tx
           .insert(productImageTable)
           .values({
-            productId: createdProduct.id,
+            productId: productId,
             imageId: image.id,
             isPrimary: image.isPrimary,
           })
@@ -40,6 +38,11 @@ export class DrizzleProductRepository implements ProductRepository {
             target: [productImageTable.productId, productImageTable.imageId],
             set: { isPrimary: image.isPrimary ?? false },
           });
+      }
+
+      const createdProduct = await this.findById(productId, tx as any);
+      if (!createdProduct) {
+        throw new InternalServerErrorException('Failed to create product');
       }
       return createdProduct;
     });
@@ -118,8 +121,11 @@ export class DrizzleProductRepository implements ProductRepository {
     throw new Error('Method not implemented.');
   }
 
-  async findById(id: ProductId): Promise<ProductWithCategoryAndMultipleImages | null> {
-    const product = await this.db.query.productTable.findFirst({
+  async findById(
+    id: ProductId,
+    db: NodePgDatabase<DrizzleSchema> = this.db,
+  ): Promise<ProductWithCategoryAndMultipleImages | null> {
+    const product = await db.query.productTable.findFirst({
       where: (p) => eq(p.id, id),
       with: {
         category: true,

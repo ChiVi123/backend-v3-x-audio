@@ -12,66 +12,20 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
-import type { CreateProductUseCaseInput } from '~/application/use-cases/create-product.use-case';
-import type { ImageEntity } from '~/domain/entities/image.entity';
-import type { ProductSpecs } from '~/domain/entities/product.entity';
-import { DriverType, ProductStatus } from '~/domain/enums/product.enum';
-import type { CategoryId, Decibel, Hertz, Ohm } from '~/domain/types/branded.type';
+import { ProductStatus } from '~/domain/enums/product.enum';
 import { IsNumberTupleArray } from '~/presentation/decorators/is-number-tuple-array.decorator';
+import { JsonTransform } from '~/presentation/decorators/json-transform.decorator';
+import { ImageDto } from '~/presentation/dtos/image.dto';
+import { ProductSpecsDto } from '~/presentation/dtos/product-specs.dto';
 
-class FrequencyResponseDto {
-  @IsNotEmpty()
-  @IsNumber()
-  @Min(0)
-  min: Hertz;
-
-  @IsNotEmpty()
-  @IsNumber()
-  @Min(0)
-  max: Hertz;
-}
-
-class ProductSpecsDto implements ProductSpecs {
-  @IsNotEmpty()
-  @IsNumber()
-  @Min(0)
-  impedance: Ohm;
-
-  @IsNotEmpty()
-  @IsNumber()
-  sensitivity: Decibel;
-
-  @IsNotEmpty()
-  @IsObject()
-  @ValidateNested()
-  @Type(() => FrequencyResponseDto)
-  frequencyResponse: FrequencyResponseDto;
-
-  @IsNotEmpty()
-  @IsEnum(DriverType)
-  driverType: DriverType;
-
-  [key: string]: unknown;
-}
-
-class ImageDto implements Pick<ImageEntity, 'alt' | 'isPrimary'> {
-  @IsNotEmpty()
-  @IsString()
-  alt: string;
-
-  @IsOptional()
-  @IsBoolean()
-  isPrimary?: boolean;
-}
-
-export class CreateProductDto implements CreateProductUseCaseInput {
+export class CreateProductDto {
   @IsNotEmpty()
   @IsString()
   name: string;
 
   @IsNotEmpty()
   @IsString()
-  categoryId: CategoryId;
+  categoryId: string;
 
   @IsNotEmpty()
   @IsString()
@@ -80,20 +34,24 @@ export class CreateProductDto implements CreateProductUseCaseInput {
   @IsNotEmpty()
   @IsNumber()
   @Min(0)
+  @Type(() => Number)
   price: number;
 
   @IsNotEmpty()
   @IsInt()
   @Min(0)
+  @Type(() => Number)
   stock: number;
 
   @IsNotEmpty()
   @IsObject()
   @ValidateNested()
   @Type(() => ProductSpecsDto)
+  @JsonTransform(ProductSpecsDto)
   specs: ProductSpecsDto;
 
   @IsNotEmpty()
+  @JsonTransform()
   @IsNumberTupleArray()
   frGraphData: [number, number][];
 
@@ -113,5 +71,6 @@ export class CreateProductDto implements CreateProductUseCaseInput {
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => ImageDto)
+  @JsonTransform(ImageDto)
   images: ImageDto[];
 }
