@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import type { ImageRepository } from '~/application/repositories/image.repository';
 import type { ProductRepository } from '~/application/repositories/product.repository';
 import type { MediaService } from '~/application/services/media.service';
+import type { SlugifyService } from '~/application/services/slugify.service';
 import type { ImageResponse } from '~/application/types/media.type';
 import { CreateProductUseCase } from '~/application/use-cases/create-product.use-case';
 import { GetListProductUseCase } from '~/application/use-cases/get-list-product.use-case';
@@ -10,9 +11,12 @@ import { UpdateProductUseCase } from '~/application/use-cases/update-product.use
 import { CloudinaryModule } from '~/infrastructure/cloudinary/cloudinary.module';
 import {
   IMAGE_REPOSITORY_TOKEN,
+  LOGGER_SERVICE_TOKEN,
   MEDIA_SERVICE_TOKEN,
   PRODUCT_REPOSITORY_TOKEN,
+  SLUGIFY_SERVICE_TOKEN,
 } from '~/infrastructure/constants/provider-token';
+import type { LoggerFactory } from '~/infrastructure/services/service.module';
 import { ProductController } from '~/presentation/controllers/product.controller';
 
 @Module({
@@ -35,8 +39,19 @@ import { ProductController } from '~/presentation/controllers/product.controller
         productRepository: ProductRepository,
         imageRepository: ImageRepository,
         mediaService: MediaService<ImageResponse>,
-      ) => new CreateProductUseCase(productRepository, imageRepository, mediaService),
-      inject: [PRODUCT_REPOSITORY_TOKEN, IMAGE_REPOSITORY_TOKEN, MEDIA_SERVICE_TOKEN],
+        slugifyService: SlugifyService,
+        loggerFactory: LoggerFactory,
+      ) => {
+        const logger = loggerFactory.create(CreateProductUseCase.name);
+        return new CreateProductUseCase(productRepository, imageRepository, mediaService, slugifyService, logger);
+      },
+      inject: [
+        PRODUCT_REPOSITORY_TOKEN,
+        IMAGE_REPOSITORY_TOKEN,
+        MEDIA_SERVICE_TOKEN,
+        SLUGIFY_SERVICE_TOKEN,
+        LOGGER_SERVICE_TOKEN,
+      ],
     },
     {
       provide: UpdateProductUseCase,
@@ -44,8 +59,19 @@ import { ProductController } from '~/presentation/controllers/product.controller
         productRepository: ProductRepository,
         imageRepository: ImageRepository,
         mediaService: MediaService<ImageResponse>,
-      ) => new UpdateProductUseCase(productRepository, imageRepository, mediaService),
-      inject: [PRODUCT_REPOSITORY_TOKEN, IMAGE_REPOSITORY_TOKEN, MEDIA_SERVICE_TOKEN],
+        slugifyService: SlugifyService,
+        loggerFactory: LoggerFactory,
+      ) => {
+        const logger = loggerFactory.create(UpdateProductUseCase.name);
+        return new UpdateProductUseCase(productRepository, imageRepository, mediaService, slugifyService, logger);
+      },
+      inject: [
+        PRODUCT_REPOSITORY_TOKEN,
+        IMAGE_REPOSITORY_TOKEN,
+        MEDIA_SERVICE_TOKEN,
+        SLUGIFY_SERVICE_TOKEN,
+        LOGGER_SERVICE_TOKEN,
+      ],
     },
   ],
 })

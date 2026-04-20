@@ -1,4 +1,3 @@
-import slugify from 'slugify';
 import { PENDING_IMAGE_DEFAULT } from '~/application/constants/default-value';
 import { BadRequestException } from '~/application/exceptions/bad-request.exception';
 import { ConflictException } from '~/application/exceptions/conflict.exception';
@@ -8,7 +7,9 @@ import type {
   ProductRepository,
   ProductWithCategoryAndMultipleImages,
 } from '~/application/repositories/product.repository';
+import type { LoggerService } from '~/application/services/logger.service';
 import type { MediaService } from '~/application/services/media.service';
+import type { SlugifyService } from '~/application/services/slugify.service';
 import type { FileUpload, ImageResponse } from '~/application/types/media.type';
 import type { ImageEntity } from '~/domain/entities/image.entity';
 import { ImageStatus } from '~/domain/enums/image.enum';
@@ -23,6 +24,8 @@ export class CreateProductUseCase {
     private readonly productRepository: ProductRepository,
     private readonly imageRepository: ImageRepository,
     private readonly mediaService: MediaService<ImageResponse>,
+    private readonly slugifyService: SlugifyService,
+    private readonly logger: LoggerService,
   ) {}
 
   async execute(input: CreateProductUseCaseInput, files: FileUpload[]): Promise<ProductWithCategoryAndMultipleImages> {
@@ -36,7 +39,7 @@ export class CreateProductUseCase {
       throw new BadRequestException('Images metadata and files must have the same length');
     }
 
-    const slug = slugify(input.name, { lower: true, strict: true, trim: true });
+    const slug = this.slugifyService.slugify(input.name);
 
     // 1. Create PENDING image records
     const pendingImages = await this.imageRepository.createMany(
@@ -58,10 +61,10 @@ export class CreateProductUseCase {
     });
 
     try {
-      // 3. [XXX]
+      // 3. Upload images to Cloudinary
       const imageSettledResults = await this.mediaService.uploadMultiple(files);
 
-      // 4. [XXX]
+      // 4. Update image records
       const imageUpdateData: UpdateManyImageInput[] = imageSettledResults.map((res, index) => ({
         id: pendingImages[index].id,
         ...(res.status === 'fulfilled' ? res.value : {}),
@@ -72,13 +75,13 @@ export class CreateProductUseCase {
       const imageSuccess = imageUpdateData.filter((result) => result.status === ImageStatus.UPLOADED);
 
       if (imageErrors.length > 0) {
-        // Logger.error(`Failed to upload ${error.length} images: ${error.join(', ')}`, 'CreateProductUseCase');
+        this.logger.error(`Failed to upload ${imageErrors.length} images: ${imageErrors.join(', ')}`);
         await this.imageRepository.deleteMany(imageErrors.map((image) => image.id));
       }
 
       await this.imageRepository.updateMany(imageSuccess);
-    } catch (_error) {
-      // Should log error
+    } catch (error) {
+      this.logger.error(error);
       // Delete all pending image are error
       await this.imageRepository.deleteMany(pendingImages.map((image) => image.id));
       product = await this.productRepository.update(product.id, {

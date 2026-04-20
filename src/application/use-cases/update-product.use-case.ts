@@ -1,10 +1,11 @@
-import slugify from 'slugify';
 import { PENDING_IMAGE_DEFAULT } from '~/application/constants/default-value';
 import { BadRequestException } from '~/application/exceptions/bad-request.exception';
 import { NotFoundException } from '~/application/exceptions/not-found.exception';
 import type { ImageRepository, UpdateManyImageInput } from '~/application/repositories/image.repository';
 import type { ProductRepository, UpdateProductInput } from '~/application/repositories/product.repository';
+import type { LoggerService } from '~/application/services/logger.service';
 import type { MediaService } from '~/application/services/media.service';
+import type { SlugifyService } from '~/application/services/slugify.service';
 import type { FileUpload, ImageResponse } from '~/application/types/media.type';
 import type { ImageEntity } from '~/domain/entities/image.entity';
 import { ImageStatus } from '~/domain/enums/image.enum';
@@ -15,6 +16,8 @@ export class UpdateProductUseCase {
     private readonly productRepository: ProductRepository,
     private readonly imageRepository: ImageRepository,
     private readonly mediaService: MediaService<ImageResponse>,
+    private readonly slugifyService: SlugifyService,
+    private readonly logger: LoggerService,
   ) {}
 
   async execute(id: ProductId, input: UpdateProductInput, files: FileUpload[]) {
@@ -55,7 +58,7 @@ export class UpdateProductUseCase {
     };
 
     if (productData.name) {
-      updateData.slug = slugify(productData.name, { lower: true });
+      updateData.slug = this.slugifyService.slugify(productData.name);
     }
 
     // 3. Update Product and its image links in a single transaction
@@ -77,7 +80,7 @@ export class UpdateProductUseCase {
         const imageSuccess = imageUpdateData.filter((result) => result.status === ImageStatus.UPLOADED);
 
         if (imageErrors.length > 0) {
-          // Should log error
+          this.logger.error(`Failed to upload ${imageErrors.length} images: ${imageErrors.join(', ')}`);
           // Delete all pending image are error
           await this.imageRepository.deleteMany(imageErrors.map((image) => image.id));
         }
@@ -85,8 +88,8 @@ export class UpdateProductUseCase {
         if (imageSuccess.length > 0) {
           await this.imageRepository.updateMany(imageSuccess);
         }
-      } catch (_error) {
-        // Should log error
+      } catch (error) {
+        this.logger.error(error);
         // Delete all pending image are error
         await this.imageRepository.deleteMany(newlyCreatedImages.map((image) => image.id));
       }
@@ -100,8 +103,8 @@ export class UpdateProductUseCase {
       if (remoteKeys.length > 0) {
         try {
           await this.mediaService.deleteMultiple(remoteKeys);
-        } catch (_error) {
-          // Should log error
+        } catch (error) {
+          this.logger.error(error);
         }
       }
 

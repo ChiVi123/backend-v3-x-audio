@@ -4,6 +4,7 @@ import { AppController } from '~/app.controller';
 import { AppService } from '~/app.service';
 import { validateEnv } from '~/config/env.validation';
 import { DatabaseModule } from '~/infrastructure/database/database.module';
+import { ServiceModule } from '~/infrastructure/services/service.module';
 import { ProductModule } from '~/presentation/controllers/product.module';
 
 @Module({
@@ -13,6 +14,7 @@ import { ProductModule } from '~/presentation/controllers/product.module';
       validate: validateEnv,
       isGlobal: true,
     }),
+    ServiceModule,
     DatabaseModule,
     ProductModule,
   ],
