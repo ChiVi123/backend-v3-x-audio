@@ -35,8 +35,8 @@ export class CreateProductUseCase {
       throw new ConflictException('Product', 'name', input.name);
     }
 
-    const { images: imageMetadataList, ...productData } = input;
-    if (imageMetadataList.length !== files.length) {
+    const { images: imagesMetadata, ...productData } = input;
+    if (imagesMetadata.length !== files.length) {
       throw new BadRequestException('Images metadata and files must have the same length');
     }
 
@@ -44,24 +44,26 @@ export class CreateProductUseCase {
 
     // 1. Create PENDING image records
     const pendingImages = await this.imageRepository.createMany(
-      imageMetadataList.map((meta, index) => ({
+      imagesMetadata.map((meta) => ({
         ...PENDING_IMAGE_DEFAULT,
-        alt: meta.alt ?? `${productData.name} ${index + 1}`,
+        alt: meta.alt ?? productData.name,
       })),
     );
 
-    // 2. Create Product
-    let product = await this.productRepository.create({
-      ...productData,
-      slug,
-      images: pendingImages.map((img, index) => ({
-        id: img.id,
-        isPrimary: imageMetadataList[index].isPrimary ?? false,
-      })),
-      status: productData.status ?? ProductStatus.DRAFT,
-    });
+    let product: ProductWithCategoryAndMultipleImages | null = null;
 
     try {
+      // 2. Create Product
+      product = await this.productRepository.create({
+        ...productData,
+        slug,
+        images: pendingImages.map((img, index) => ({
+          id: img.id,
+          isPrimary: imagesMetadata[index].isPrimary ?? false,
+        })),
+        status: productData.status ?? ProductStatus.DRAFT,
+      });
+
       // 3. Upload images to Cloudinary
       const imageSettledResults = await this.mediaService.uploadMultiple(files);
 
@@ -69,6 +71,7 @@ export class CreateProductUseCase {
       const imageUpdateData: UpdateManyImageInput[] = imageSettledResults.map((res, index) => ({
         id: pendingImages[index].id,
         ...(res.status === 'fulfilled' ? res.value : {}),
+        alt: imagesMetadata[index].alt ?? `${productData.name} ${index + 1}`,
         status: res.status === 'fulfilled' ? ImageStatus.UPLOADED : ImageStatus.ERROR,
       }));
 
@@ -87,16 +90,19 @@ export class CreateProductUseCase {
       if (!updatedProduct) {
         throw new InternalServerErrorException('Failed to retrieve updated product after image upload');
       }
-      product = updatedProduct;
+      return updatedProduct;
     } catch (error) {
       this.logger.error(error);
       // Delete all pending image are error
       await this.imageRepository.deleteMany(pendingImages.map((image) => image.id));
-      product = await this.productRepository.update(product.id, {
-        status: ProductStatus.DRAFT,
-      });
-    }
 
-    return product;
+      if (product?.id) {
+        return this.productRepository.update(product.id, {
+          status: ProductStatus.DRAFT,
+        });
+      } else {
+        throw error;
+      }
+    }
   }
 }

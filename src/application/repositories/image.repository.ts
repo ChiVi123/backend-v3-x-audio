@@ -2,7 +2,6 @@ import type { ImageEntity } from '~/domain/entities/image.entity';
 import type { ImageId } from '~/domain/types/branded.type';
 
 export interface ImageRepository {
-  findByRemoteKey(remoteKey: string): Promise<ImageEntity | null>;
   findByIds(ids: ImageId[]): Promise<ImageEntity[]>;
   create(data: CreateImageInput): Promise<ImageEntity>;
   createMany(data: CreateImageInput[]): Promise<ImageEntity[]>;

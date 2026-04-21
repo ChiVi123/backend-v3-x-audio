@@ -4,7 +4,7 @@ import { IsBoolean, IsOptional, IsString, IsUUID, ValidateNested } from 'class-v
 import { JsonTransform } from '~/presentation/decorators/json-transform.decorator';
 import { CreateProductDto } from '~/presentation/dtos/create-product.dto';
 
-export class ImageInputDto {
+class ImageInputDto {
   @IsUUID()
   id: string;
 
@@ -13,7 +13,7 @@ export class ImageInputDto {
   isPrimary?: boolean;
 }
 
-export class NewImageDto {
+class NewImageDto {
   @IsOptional()
   @IsBoolean()
   isPrimary?: boolean;

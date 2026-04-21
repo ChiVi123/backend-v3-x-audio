@@ -14,19 +14,17 @@ import {
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { ALLOWED_IMAGE_MIME_TYPES, MAX_IMAGE_FILE_SIZE, MAX_IMAGE_FILES } from '~/application/constants/default-value';
 import type {
-  CreateProductInput,
   ProductWithCategoryAndMultipleImages,
   ProductWithCategoryAndSingleImage,
-  UpdateProductInput,
 } from '~/application/repositories/product.repository';
 // biome-ignore lint/style/useImportType: NestJS DI uses reflect-metadata to resolve this class as a runtime token; `import type` would erase it at compile time, breaking dependency injection
-import { CreateProductUseCase } from '~/application/use-cases/create-product.use-case';
+import { CreateProductUseCase, CreateProductUseCaseInput } from '~/application/use-cases/create-product.use-case';
 // biome-ignore lint/style/useImportType: NestJS DI uses reflect-metadata to resolve this class as a runtime token; `import type` would erase it at compile time, breaking dependency injection
 import { GetListProductUseCase } from '~/application/use-cases/get-list-product.use-case';
 // biome-ignore lint/style/useImportType: NestJS DI uses reflect-metadata to resolve this class as a runtime token; `import type` would erase it at compile time, breaking dependency injection
 import { GetProductByIdUseCase } from '~/application/use-cases/get-product-by-id.use-case';
 // biome-ignore lint/style/useImportType: NestJS DI uses reflect-metadata to resolve this class as a runtime token; `import type` would erase it at compile time, breaking dependency injection
-import { UpdateProductUseCase } from '~/application/use-cases/update-product.use-case';
+import { UpdateProductUseCase, UpdateProductUseCaseInput } from '~/application/use-cases/update-product.use-case';
 import type { ProductId } from '~/domain/types/branded.type';
 // biome-ignore lint/style/useImportType: NestJS ValidationPipe uses reflect-metadata to resolve this class as a runtime token for validation and transformation; `import type` would erase it at compile time
 import { CreateProductDto } from '~/presentation/dtos/create-product.dto';
@@ -66,7 +64,7 @@ export class ProductController {
     )
     files: Express.Multer.File[],
   ): Promise<ProductWithCategoryAndMultipleImages> {
-    return this.createProductUseCase.execute(input as unknown as CreateProductInput, files);
+    return this.createProductUseCase.execute(input as unknown as CreateProductUseCaseInput, files);
   }
 
   @Patch(':id')
@@ -85,6 +83,6 @@ export class ProductController {
     )
     files: Express.Multer.File[],
   ): Promise<ProductWithCategoryAndMultipleImages> {
-    return this.updateProductUseCase.execute(id, input as unknown as UpdateProductInput, files);
+    return this.updateProductUseCase.execute(id, input as unknown as UpdateProductUseCaseInput, files);
   }
 }

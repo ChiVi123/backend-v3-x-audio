@@ -5,7 +5,7 @@
 @email=tester@example.com
 @password=Password123!
 @categoryId=11111111-0000-0000-0000-000000000013
-@productId=00000000-0000-0000-0000-000000000001
+@productId=f331cf9a-b671-4008-be27-e3d745c7b73b
 
 ### Register
 POST {{baseUrl}}/auth/register
@@ -120,17 +120,79 @@ Sony WH-1000XM5 Black (Updated)
 Content-Disposition: form-data; name="price"
 
 1450
---MimeBoundary
-Content-Disposition: form-data; name="keepImages"
 
-[
-  { "id": "00000000-0000-0000-0000-000000000001", "isPrimary": true }
-]
 --MimeBoundary
 Content-Disposition: form-data; name="newImages"
 
 [
   { "alt": "Sony WH-1000XM5 Black Side View", "isPrimary": false }
+]
+--MimeBoundary
+Content-Disposition: form-data; name="files"; filename="Sony-WH-1000XM5-Black-2.png"
+Content-Type: image/png
+
+< ./assets/Sony-WH-1000XM5-Black-2.png
+--MimeBoundary--
+
+
+### Update Product New Image with primary
+PATCH {{baseUrl}}/products/{{productId}}
+Content-Type: {{formType}}
+Authorization: Bearer {{accessToken}}
+
+--MimeBoundary
+Content-Disposition: form-data; name="newImages"
+
+[
+  { "alt": "Sony WH-1000XM5 Black Side View (2)", "isPrimary": true }
+]
+--MimeBoundary
+Content-Disposition: form-data; name="files"; filename="Sony-WH-1000XM5-Black-2.png"
+Content-Type: image/png
+
+< ./assets/Sony-WH-1000XM5-Black-2.png
+--MimeBoundary--
+
+### Update Product with two primary (should fail).
+PATCH {{baseUrl}}/products/{{productId}}
+Content-Type: {{formType}}
+Authorization: Bearer {{accessToken}}
+
+--MimeBoundary
+Content-Disposition: form-data; name="keepImages"
+
+[
+  { "id": "3f782ae6-8968-4c87-aeb5-85c37a1e1c7f", "isPrimary": true }
+]
+--MimeBoundary
+Content-Disposition: form-data; name="newImages"
+
+[
+  { "alt": "Sony WH-1000XM5 Black Side View", "isPrimary": true }
+]
+--MimeBoundary
+Content-Disposition: form-data; name="files"; filename="Sony-WH-1000XM5-Black-2.png"
+Content-Type: image/png
+
+< ./assets/Sony-WH-1000XM5-Black-2.png
+--MimeBoundary--
+
+### Update Product specify old image is primary (should success).
+PATCH {{baseUrl}}/products/{{productId}}
+Content-Type: {{formType}}
+Authorization: Bearer {{accessToken}}
+
+--MimeBoundary
+Content-Disposition: form-data; name="keepImages"
+
+[
+  { "id": "7855fba6-9925-44cc-9618-1c26da24af63", "isPrimary": true }
+]
+--MimeBoundary
+Content-Disposition: form-data; name="newImages"
+
+[
+  { "alt": "Sony WH-1000XM5 Black Side View (3)", "isPrimary": false }
 ]
 --MimeBoundary
 Content-Disposition: form-data; name="files"; filename="Sony-WH-1000XM5-Black-2.png"

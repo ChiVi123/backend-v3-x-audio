@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { eq, sql } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { InternalServerErrorException } from '~/application/exceptions/internal-server-error.exception';
@@ -16,6 +16,8 @@ import { DRIZZLE_TOKEN } from '~/infrastructure/constants/drizzle';
 import type { DrizzleSchema } from '~/infrastructure/database/drizzle';
 import { productImageTable, productTable } from '~/infrastructure/database/drizzle/schema';
 
+const ONE_PRIMARY_IMAGE = 1;
+
 @Injectable()
 export class DrizzleProductRepository implements ProductRepository {
   constructor(@Inject(DRIZZLE_TOKEN) private readonly db: NodePgDatabase<DrizzleSchema>) {}
@@ -26,17 +28,19 @@ export class DrizzleProductRepository implements ProductRepository {
       const inserted = await tx.insert(productTable).values(product).returning();
       const productId = inserted[0].id;
 
-      for (const image of images) {
+      if (images.length > 0) {
         await tx
           .insert(productImageTable)
-          .values({
-            productId: productId,
-            imageId: image.id,
-            isPrimary: image.isPrimary,
-          })
+          .values(
+            images.map((image) => ({
+              productId: productId,
+              imageId: image.id,
+              isPrimary: image.isPrimary,
+            })),
+          )
           .onConflictDoUpdate({
             target: [productImageTable.productId, productImageTable.imageId],
-            set: { isPrimary: image.isPrimary ?? false },
+            set: { isPrimary: sql`excluded.is_primary` },
           });
       }
 
@@ -52,7 +56,7 @@ export class DrizzleProductRepository implements ProductRepository {
 
   async update(
     id: ProductId,
-    { keepImages, newImages, removeImageIds, ...product }: UpdateProductInput,
+    { keepImages, ...product }: UpdateProductInput,
   ): Promise<ProductWithCategoryAndMultipleImages> {
     return this.db.transaction(async (tx) => {
       if (Object.keys(product).length > 0) {
@@ -60,19 +64,29 @@ export class DrizzleProductRepository implements ProductRepository {
       }
 
       if (keepImages && keepImages.length > 0) {
-        for (const image of keepImages) {
-          await tx
-            .insert(productImageTable)
-            .values({
+        const primaryCount = keepImages.filter((img) => img.isPrimary === true).length;
+
+        if (primaryCount > ONE_PRIMARY_IMAGE) {
+          throw new BadRequestException('Only one primary image is allowed');
+        }
+
+        if (primaryCount === ONE_PRIMARY_IMAGE) {
+          await tx.update(productImageTable).set({ isPrimary: false }).where(eq(productImageTable.productId, id));
+        }
+
+        await tx
+          .insert(productImageTable)
+          .values(
+            keepImages.map((image) => ({
               productId: id,
               imageId: image.id,
               isPrimary: image.isPrimary ?? false,
-            })
-            .onConflictDoUpdate({
-              target: [productImageTable.productId, productImageTable.imageId],
-              set: { isPrimary: image.isPrimary ?? false },
-            });
-        }
+            })),
+          )
+          .onConflictDoUpdate({
+            target: [productImageTable.productId, productImageTable.imageId],
+            set: { isPrimary: sql`excluded.is_primary` },
+          });
       }
 
       // Fetch the updated product (using tx to guarantee we read the uncommitted state if isolation level requires, though for PostGres with Drizzle, often we can just query inside tx)
@@ -119,6 +133,16 @@ export class DrizzleProductRepository implements ProductRepository {
 
   delete(id: ProductId): Promise<void> {
     throw new Error('Method not implemented.');
+  }
+
+  async getRawById(id: ProductId): Promise<{ name: string } | null> {
+    const product = await this.db.query.productTable.findFirst({
+      where: (p) => eq(p.id, id),
+      columns: {
+        name: true,
+      },
+    });
+    return product ?? null;
   }
 
   async findById(

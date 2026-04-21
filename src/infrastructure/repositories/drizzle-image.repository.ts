@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { eq, inArray } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { InternalServerErrorException } from '~/application/exceptions/internal-server-error.exception';
@@ -18,10 +18,6 @@ import { imageTable } from '~/infrastructure/database/drizzle/schema';
 @Injectable()
 export class DrizzleImageRepository implements ImageRepository {
   constructor(@Inject(DRIZZLE_TOKEN) private readonly db: NodePgDatabase<DrizzleSchema>) {}
-
-  async findByRemoteKey(remoteKey: string): Promise<ImageEntity | null> {
-    throw new Error('Method not implemented.');
-  }
 
   async findByIds(ids: ImageId[]): Promise<ImageEntity[]> {
     if (ids.length === 0) {
@@ -102,10 +98,14 @@ export class DrizzleImageRepository implements ImageRepository {
   }
 
   async updateMany(images: UpdateManyImageInput[]): Promise<ImageEntity[]> {
+    if (images.length === 0) {
+      return [];
+    }
     const results = await this.db.transaction(async (tx) => {
-      const updates = images.map(({ id, ...data }) =>
-        tx.update(imageTable).set(data).where(eq(imageTable.id, id)).returning(),
-      );
+      // FIXME: optimize this
+      const updates = images
+        .filter(({ id, ...data }) => Object.values(data).some((pro) => pro !== undefined) && id !== undefined)
+        .map(({ id, ...data }) => tx.update(imageTable).set(data).where(eq(imageTable.id, id)).returning());
       const updateResults = await Promise.all(updates);
       return updateResults.flat();
     });
@@ -124,14 +124,10 @@ export class DrizzleImageRepository implements ImageRepository {
   }
 
   async delete(id: ImageId): Promise<void> {
-    throw new Error('Method not implemented.');
+    await this.db.delete(imageTable).where(eq(imageTable.id, id));
   }
 
   async deleteMany(ids: ImageId[]): Promise<void> {
     await this.db.delete(imageTable).where(inArray(imageTable.id, ids));
-  }
-
-  async existsByRemoteKey(remoteKey: string): Promise<boolean> {
-    throw new Error('Method not implemented.');
   }
 }

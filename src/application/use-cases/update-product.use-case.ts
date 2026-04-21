@@ -9,7 +9,13 @@ import type { SlugifyService } from '~/application/services/slugify.service';
 import type { FileUpload, ImageResponse } from '~/application/types/media.type';
 import type { ImageEntity } from '~/domain/entities/image.entity';
 import { ImageStatus } from '~/domain/enums/image.enum';
-import type { ProductId } from '~/domain/types/branded.type';
+import type { ImageId, ProductId } from '~/domain/types/branded.type';
+
+export interface UpdateProductUseCaseInput extends UpdateProductInput {
+  newImages?: { isPrimary?: boolean; alt?: string }[];
+  keepImages?: { id: ImageId; alt?: string; isPrimary: boolean }[];
+  removeImageIds?: ImageId[] | undefined;
+}
 
 export class UpdateProductUseCase {
   constructor(
@@ -20,11 +26,11 @@ export class UpdateProductUseCase {
     private readonly logger: LoggerService,
   ) {}
 
-  async execute(id: ProductId, input: UpdateProductInput, files: FileUpload[]) {
+  async execute(id: ProductId, input: UpdateProductUseCaseInput, files: FileUpload[]) {
     const { newImages: newImagesMetadata, removeImageIds, keepImages = [], ...productData } = input;
 
-    const exists = await this.productRepository.existsById(id);
-    if (!exists) {
+    const oldProduct = await this.productRepository.getRawById(id);
+    if (!oldProduct) {
       throw new NotFoundException('Product', 'id', id);
     }
 
@@ -37,16 +43,19 @@ export class UpdateProductUseCase {
     let newlyCreatedImages: ImageEntity[] = [];
     if (newImagesMetadata && newImagesMetadata.length > 0) {
       newlyCreatedImages = await this.imageRepository.createMany(
-        newImagesMetadata.map((meta, index) => ({
+        newImagesMetadata.map((meta) => ({
           ...PENDING_IMAGE_DEFAULT,
-          alt: (meta.alt ?? productData.name) ? `${productData.name} ${index + 1}` : `Product image ${index + 1}`,
+          alt: meta.alt ?? productData.name ?? oldProduct.name,
         })),
       );
     }
 
     // 2. Prepare the final set of images to be linked to the product
     const allKeepImages = [
-      ...keepImages,
+      ...keepImages.map((img) => ({
+        id: img.id,
+        isPrimary: img.isPrimary,
+      })),
       ...newlyCreatedImages.map((img, index) => ({
         id: img.id,
         isPrimary: newImagesMetadata![index].isPrimary ?? false,
@@ -62,8 +71,14 @@ export class UpdateProductUseCase {
       updateData.slug = this.slugifyService.slugify(productData.name);
     }
 
-    // 3. Update Product and its image links in a single transaction
-    const updatedProduct = await this.productRepository.update(id, updateData);
+    try {
+      // 3. Update Product and its image links in a single transaction
+      await this.productRepository.update(id, updateData);
+    } catch (error) {
+      // Delete all pending image are error
+      await this.imageRepository.deleteMany(newlyCreatedImages.map((image) => image.id));
+      throw error;
+    }
 
     // 4. Upload new files
     if (files.length > 0) {
@@ -74,11 +89,12 @@ export class UpdateProductUseCase {
         const imageUpdateData: UpdateManyImageInput[] = imageSettledResults.map((res, index) => ({
           id: newlyCreatedImages[index].id,
           ...(res.status === 'fulfilled' ? res.value : {}),
+          alt: newImagesMetadata![index].alt ?? (res.status === 'fulfilled' ? res.value.alt : undefined),
           status: res.status === 'fulfilled' ? ImageStatus.UPLOADED : ImageStatus.ERROR,
         }));
 
-        const imageErrors = imageUpdateData.filter((result) => result.status === ImageStatus.ERROR);
         const imageSuccess = imageUpdateData.filter((result) => result.status === ImageStatus.UPLOADED);
+        const imageErrors = imageUpdateData.filter((result) => result.status === ImageStatus.ERROR);
 
         if (imageErrors.length > 0) {
           this.logger.error(`Failed to upload ${imageErrors.length} images: ${imageErrors.join(', ')}`);
@@ -96,7 +112,12 @@ export class UpdateProductUseCase {
       }
     }
 
-    // 6. Cleanup removed images (DB + Storage)
+    // 6. Update image isPrimary
+    if (keepImages.length > 0) {
+      await this.imageRepository.updateMany(keepImages.map((img) => ({ id: img.id, alt: img.alt })));
+    }
+
+    // 7. Cleanup removed images (DB + Storage)
     if (removeImageIds && removeImageIds.length > 0) {
       const imagesToDelete = await this.imageRepository.findByIds(removeImageIds);
       const remoteKeys = imagesToDelete.map((img) => img.remoteKey).filter((key): key is string => !!key);
@@ -112,6 +133,7 @@ export class UpdateProductUseCase {
       await this.imageRepository.deleteMany(removeImageIds);
     }
 
-    return updatedProduct;
+    const finalProduct = await this.productRepository.findById(id);
+    return finalProduct;
   }
 }

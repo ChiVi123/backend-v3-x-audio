@@ -12,6 +12,7 @@ export interface ProductRepository {
    */
   update(id: ProductId, product: UpdateProductInput): Promise<ProductWithCategoryAndMultipleImages>;
   delete(id: ProductId): Promise<void>;
+  getRawById(id: ProductId): Promise<{ name: string } | null>;
   findById(id: ProductId): Promise<ProductWithCategoryAndMultipleImages | null>;
   findAll(): Promise<ProductWithCategoryAndSingleImage[]>;
   existsById(id: ProductId): Promise<boolean>;
@@ -30,11 +31,7 @@ export interface CreateProductInput extends Omit<ProductEntity, 'id' | 'createdA
  */
 export interface UpdateProductInput extends Partial<Omit<CreateProductInput, 'images'>> {
   /** Images to keep or update (isPrimary) */
-  keepImages?: { id: ImageId; isPrimary?: boolean }[];
-  /** NEW Image metadata (matches files index) */
-  newImages?: { isPrimary?: boolean; alt?: string }[];
-  /** IDs of images to remove from DB and Storage */
-  removeImageIds?: ImageId[];
+  keepImages?: { id: ImageId; isPrimary: boolean }[];
 }
 
 export type ImageInput = Pick<ImageEntity, 'id' | 'isPrimary'>;
