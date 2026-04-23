@@ -1,6 +1,7 @@
-import { BadRequestException, Inject, Injectable } from '@nestjs/common';
-import { eq, sql } from 'drizzle-orm';
+import { Inject, Injectable } from '@nestjs/common';
+import { count, eq, sql } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import { BadRequestException } from '~/application/exceptions/bad-request.exception';
 import { InternalServerErrorException } from '~/application/exceptions/internal-server-error.exception';
 import type {
   CreateProductInput,
@@ -9,6 +10,7 @@ import type {
   ProductWithCategoryAndSingleImage,
   UpdateProductInput,
 } from '~/application/repositories/product.repository';
+import type { PaginatedResult } from '~/application/types/pagination.type';
 import type { ImageStatus } from '~/domain/enums/image.enum';
 import type { ProductStatus } from '~/domain/enums/product.enum';
 import { type ProductId, toCategoryId } from '~/domain/types/branded.type';
@@ -92,11 +94,48 @@ export class DrizzleProductRepository implements ProductRepository {
       // Fetch the updated product (using tx to guarantee we read the uncommitted state if isolation level requires, though for PostGres with Drizzle, often we can just query inside tx)
       const updatedProduct = await tx.query.productTable.findFirst({
         where: (p) => eq(p.id, id),
+        columns: {
+          id: true,
+          name: true,
+          slug: true,
+          description: true,
+          price: true,
+          stock: true,
+          specs: true,
+          frGraphData: true,
+          threeModelId: true,
+          status: true,
+          createdAt: true,
+          updatedAt: true,
+        },
         with: {
-          category: true,
+          category: {
+            columns: {
+              id: true,
+              name: true,
+              slug: true,
+              description: true,
+              parentId: true,
+              productCount: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+          },
           productImages: {
             with: {
-              image: true,
+              image: {
+                columns: {
+                  id: true,
+                  url: true,
+                  alt: true,
+                  remoteKey: true,
+                  provider: true,
+                  metadata: true,
+                  status: true,
+                  createdAt: true,
+                  updatedAt: true,
+                },
+              },
             },
           },
         },
@@ -151,11 +190,48 @@ export class DrizzleProductRepository implements ProductRepository {
   ): Promise<ProductWithCategoryAndMultipleImages | null> {
     const product = await db.query.productTable.findFirst({
       where: (p) => eq(p.id, id),
+      columns: {
+        id: true,
+        name: true,
+        slug: true,
+        description: true,
+        price: true,
+        stock: true,
+        specs: true,
+        frGraphData: true,
+        threeModelId: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+      },
       with: {
-        category: true,
+        category: {
+          columns: {
+            id: true,
+            name: true,
+            slug: true,
+            description: true,
+            parentId: true,
+            productCount: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
         productImages: {
           with: {
-            image: true,
+            image: {
+              columns: {
+                id: true,
+                url: true,
+                alt: true,
+                remoteKey: true,
+                provider: true,
+                metadata: true,
+                status: true,
+                createdAt: true,
+                updatedAt: true,
+              },
+            },
           },
         },
       },
@@ -189,21 +265,65 @@ export class DrizzleProductRepository implements ProductRepository {
     };
   }
 
-  async findAll(): Promise<ProductWithCategoryAndSingleImage[]> {
+  async findAll(page: number, limit: number): Promise<PaginatedResult<ProductWithCategoryAndSingleImage>> {
+    const offset = (page - 1) * limit;
+
+    const [totalResult] = await this.db.select({ value: count() }).from(productTable);
+    const total = Number(totalResult.value);
+
     const products = await this.db.query.productTable.findMany({
+      limit: limit,
+      offset: offset,
+      columns: {
+        id: true,
+        name: true,
+        slug: true,
+        description: true,
+        price: true,
+        stock: true,
+        specs: true,
+        frGraphData: true,
+        threeModelId: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+      },
       with: {
-        category: true,
+        category: {
+          columns: {
+            id: true,
+            name: true,
+            slug: true,
+            description: true,
+            parentId: true,
+            productCount: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
         productImages: {
           where: (pi) => eq(pi.isPrimary, true),
           limit: 1,
           with: {
-            image: true,
+            image: {
+              columns: {
+                id: true,
+                url: true,
+                alt: true,
+                remoteKey: true,
+                provider: true,
+                metadata: true,
+                status: true,
+                createdAt: true,
+                updatedAt: true,
+              },
+            },
           },
         },
       },
     });
 
-    return products.map(({ category, productImages, ...p }) => {
+    const data = products.map(({ category, productImages, ...p }) => {
       const { image, isPrimary } = productImages[0] ?? {};
       return {
         ...p,
@@ -216,17 +336,29 @@ export class DrizzleProductRepository implements ProductRepository {
           parentId: category.parentId ? toCategoryId(category.parentId) : undefined,
           updatedAt: category.updatedAt ?? undefined,
         },
-        image: {
-          ...image,
-          remoteKey: image.remoteKey ?? undefined,
-          provider: image.provider ?? undefined,
-          metadata: image.metadata ?? undefined,
-          updatedAt: image.updatedAt ?? undefined,
-          status: image.status as ImageStatus,
-          isPrimary,
-        },
+        image: image
+          ? {
+              ...image,
+              remoteKey: image.remoteKey ?? undefined,
+              provider: image.provider ?? undefined,
+              metadata: image.metadata ?? undefined,
+              updatedAt: image.updatedAt ?? undefined,
+              status: image.status as ImageStatus,
+              isPrimary: isPrimary ?? false,
+            }
+          : null,
       };
     });
+
+    return {
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   async existsByName(name: string): Promise<boolean> {

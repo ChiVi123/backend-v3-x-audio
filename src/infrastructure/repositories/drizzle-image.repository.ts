@@ -25,6 +25,17 @@ export class DrizzleImageRepository implements ImageRepository {
     }
     const results = await this.db.query.imageTable.findMany({
       where: (t) => inArray(t.id, ids),
+      columns: {
+        id: true,
+        url: true,
+        alt: true,
+        remoteKey: true,
+        provider: true,
+        metadata: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+      },
     });
 
     return results.map((item) => ({
