@@ -1,3 +1,4 @@
+import type { PaginatedResult } from '~/application/types/pagination.type';
 import type { CategoryEntity } from '~/domain/entities/category.entity';
 import type { ImageEntity } from '~/domain/entities/image.entity';
 import type { ProductEntity } from '~/domain/entities/product.entity';
@@ -14,7 +15,7 @@ export interface ProductRepository {
   delete(id: ProductId): Promise<void>;
   getRawById(id: ProductId): Promise<{ name: string } | null>;
   findById(id: ProductId): Promise<ProductWithCategoryAndMultipleImages | null>;
-  findAll(): Promise<ProductWithCategoryAndSingleImage[]>;
+  findAll(page: number, limit: number): Promise<PaginatedResult<ProductWithCategoryAndSingleImage>>;
   existsById(id: ProductId): Promise<boolean>;
   existsByName(name: string): Promise<boolean>;
 }

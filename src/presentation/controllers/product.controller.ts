@@ -8,6 +8,7 @@ import {
   ParseFilePipe,
   Patch,
   Post,
+  Query,
   UploadedFiles,
   UseInterceptors,
 } from '@nestjs/common';
@@ -17,6 +18,7 @@ import type {
   ProductWithCategoryAndMultipleImages,
   ProductWithCategoryAndSingleImage,
 } from '~/application/repositories/product.repository';
+import type { PaginatedResult } from '~/application/types/pagination.type';
 // biome-ignore lint/style/useImportType: NestJS DI uses reflect-metadata to resolve this class as a runtime token; `import type` would erase it at compile time, breaking dependency injection
 import { CreateProductUseCase, CreateProductUseCaseInput } from '~/application/use-cases/create-product.use-case';
 // biome-ignore lint/style/useImportType: NestJS DI uses reflect-metadata to resolve this class as a runtime token; `import type` would erase it at compile time, breaking dependency injection
@@ -28,6 +30,8 @@ import { UpdateProductUseCase, UpdateProductUseCaseInput } from '~/application/u
 import type { ProductId } from '~/domain/types/branded.type';
 // biome-ignore lint/style/useImportType: NestJS ValidationPipe uses reflect-metadata to resolve this class as a runtime token for validation and transformation; `import type` would erase it at compile time
 import { CreateProductDto } from '~/presentation/dtos/create-product.dto';
+// biome-ignore lint/style/useImportType: NestJS ValidationPipe uses reflect-metadata to resolve this class as a runtime token for validation and transformation; `import type` would erase it at compile time
+import { PaginationQueryDto } from '~/presentation/dtos/pagination-query.dto';
 // biome-ignore lint/style/useImportType: NestJS ValidationPipe uses reflect-metadata to resolve this class as a runtime token for validation and transformation; `import type` would erase it at compile time
 import { UpdateProductDto } from '~/presentation/dtos/update-product.dto';
 
@@ -41,8 +45,8 @@ export class ProductController {
   ) {}
 
   @Get()
-  async findAll(): Promise<ProductWithCategoryAndSingleImage[]> {
-    return this.getListProductUseCase.execute();
+  async findAll(@Query() query: PaginationQueryDto): Promise<PaginatedResult<ProductWithCategoryAndSingleImage>> {
+    return this.getListProductUseCase.execute(query.page, query.limit);
   }
 
   @Get(':id')
@@ -82,7 +86,7 @@ export class ProductController {
       }),
     )
     files: Express.Multer.File[],
-  ): Promise<ProductWithCategoryAndMultipleImages> {
+  ): Promise<ProductWithCategoryAndMultipleImages | null> {
     return this.updateProductUseCase.execute(id, input as unknown as UpdateProductUseCaseInput, files);
   }
 }
