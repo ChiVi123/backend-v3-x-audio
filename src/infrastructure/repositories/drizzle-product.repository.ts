@@ -3,6 +3,7 @@ import { count, eq, sql } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { BadRequestException } from '~/application/exceptions/bad-request.exception';
 import { InternalServerErrorException } from '~/application/exceptions/internal-server-error.exception';
+import { ProductMapper } from '~/application/mappers/product.mapper';
 import type {
   CreateProductInput,
   ProductRepository,
@@ -11,11 +12,10 @@ import type {
   UpdateProductInput,
 } from '~/application/repositories/product.repository';
 import type { PaginatedResult } from '~/application/types/pagination.type';
-import type { ImageStatus } from '~/domain/enums/image.enum';
-import type { ProductStatus } from '~/domain/enums/product.enum';
-import { type ProductId, toCategoryId } from '~/domain/types/branded.type';
+import type { ProductId } from '~/domain/types/branded.type';
 import { DRIZZLE_TOKEN } from '~/infrastructure/constants/drizzle';
 import type { DrizzleSchema } from '~/infrastructure/database/drizzle';
+import { CATEGORY_COLUMNS, IMAGE_COLUMNS, PRODUCT_COLUMNS } from '~/infrastructure/database/drizzle/constants/columns';
 import { productImageTable, productTable } from '~/infrastructure/database/drizzle/schema';
 
 const ONE_PRIMARY_IMAGE = 1;
@@ -91,51 +91,14 @@ export class DrizzleProductRepository implements ProductRepository {
           });
       }
 
-      // Fetch the updated product (using tx to guarantee we read the uncommitted state if isolation level requires, though for PostGres with Drizzle, often we can just query inside tx)
       const updatedProduct = await tx.query.productTable.findFirst({
         where: (p) => eq(p.id, id),
-        columns: {
-          id: true,
-          name: true,
-          slug: true,
-          description: true,
-          price: true,
-          stock: true,
-          specs: true,
-          frGraphData: true,
-          threeModelId: true,
-          status: true,
-          createdAt: true,
-          updatedAt: true,
-        },
+        columns: PRODUCT_COLUMNS,
         with: {
-          category: {
-            columns: {
-              id: true,
-              name: true,
-              slug: true,
-              description: true,
-              parentId: true,
-              productCount: true,
-              createdAt: true,
-              updatedAt: true,
-            },
-          },
+          category: { columns: CATEGORY_COLUMNS },
           productImages: {
             with: {
-              image: {
-                columns: {
-                  id: true,
-                  url: true,
-                  alt: true,
-                  remoteKey: true,
-                  provider: true,
-                  metadata: true,
-                  status: true,
-                  createdAt: true,
-                  updatedAt: true,
-                },
-              },
+              image: { columns: IMAGE_COLUMNS },
             },
           },
         },
@@ -145,28 +108,7 @@ export class DrizzleProductRepository implements ProductRepository {
         throw new InternalServerErrorException('Failed to retrieve updated product');
       }
 
-      const { category, productImages, ...p } = updatedProduct;
-      return {
-        ...p,
-        threeModelId: p.threeModelId ?? undefined,
-        status: p.status as ProductStatus,
-        updatedAt: p.updatedAt ?? undefined,
-        category: {
-          ...category,
-          description: category.description ?? '',
-          parentId: category.parentId ? toCategoryId(category.parentId) : undefined,
-          updatedAt: category.updatedAt ?? undefined,
-        },
-        images: productImages.map(({ image, isPrimary }) => ({
-          ...image,
-          remoteKey: image.remoteKey ?? undefined,
-          provider: image.provider ?? undefined,
-          metadata: image.metadata ?? undefined,
-          updatedAt: image.updatedAt ?? undefined,
-          status: image.status as ImageStatus,
-          isPrimary,
-        })),
-      };
+      return ProductMapper.toResponseWithMultipleImages(updatedProduct);
     });
   }
 
@@ -190,48 +132,12 @@ export class DrizzleProductRepository implements ProductRepository {
   ): Promise<ProductWithCategoryAndMultipleImages | null> {
     const product = await db.query.productTable.findFirst({
       where: (p) => eq(p.id, id),
-      columns: {
-        id: true,
-        name: true,
-        slug: true,
-        description: true,
-        price: true,
-        stock: true,
-        specs: true,
-        frGraphData: true,
-        threeModelId: true,
-        status: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+      columns: PRODUCT_COLUMNS,
       with: {
-        category: {
-          columns: {
-            id: true,
-            name: true,
-            slug: true,
-            description: true,
-            parentId: true,
-            productCount: true,
-            createdAt: true,
-            updatedAt: true,
-          },
-        },
+        category: { columns: CATEGORY_COLUMNS },
         productImages: {
           with: {
-            image: {
-              columns: {
-                id: true,
-                url: true,
-                alt: true,
-                remoteKey: true,
-                provider: true,
-                metadata: true,
-                status: true,
-                createdAt: true,
-                updatedAt: true,
-              },
-            },
+            image: { columns: IMAGE_COLUMNS },
           },
         },
       },
@@ -241,28 +147,7 @@ export class DrizzleProductRepository implements ProductRepository {
       return null;
     }
 
-    const { category, productImages, ...p } = product;
-    return {
-      ...p,
-      threeModelId: p.threeModelId ?? undefined,
-      status: p.status as ProductStatus,
-      updatedAt: p.updatedAt ?? undefined,
-      category: {
-        ...category,
-        description: category.description ?? '',
-        parentId: category.parentId ? toCategoryId(category.parentId) : undefined,
-        updatedAt: category.updatedAt ?? undefined,
-      },
-      images: productImages.map(({ image, isPrimary }) => ({
-        ...image,
-        remoteKey: image.remoteKey ?? undefined,
-        provider: image.provider ?? undefined,
-        metadata: image.metadata ?? undefined,
-        updatedAt: image.updatedAt ?? undefined,
-        status: image.status as ImageStatus,
-        isPrimary,
-      })),
-    };
+    return ProductMapper.toResponseWithMultipleImages(product);
   }
 
   async findAll(page: number, limit: number): Promise<PaginatedResult<ProductWithCategoryAndSingleImage>> {
@@ -274,84 +159,21 @@ export class DrizzleProductRepository implements ProductRepository {
     const products = await this.db.query.productTable.findMany({
       limit: limit,
       offset: offset,
-      columns: {
-        id: true,
-        name: true,
-        slug: true,
-        description: true,
-        price: true,
-        stock: true,
-        specs: true,
-        frGraphData: true,
-        threeModelId: true,
-        status: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+      columns: PRODUCT_COLUMNS,
       with: {
-        category: {
-          columns: {
-            id: true,
-            name: true,
-            slug: true,
-            description: true,
-            parentId: true,
-            productCount: true,
-            createdAt: true,
-            updatedAt: true,
-          },
-        },
+        category: { columns: CATEGORY_COLUMNS },
         productImages: {
           where: (pi) => eq(pi.isPrimary, true),
           limit: 1,
           with: {
-            image: {
-              columns: {
-                id: true,
-                url: true,
-                alt: true,
-                remoteKey: true,
-                provider: true,
-                metadata: true,
-                status: true,
-                createdAt: true,
-                updatedAt: true,
-              },
-            },
+            image: { columns: IMAGE_COLUMNS },
           },
         },
       },
     });
 
-    const data = products.map(({ category, productImages, ...p }) => {
-      const { image, isPrimary } = productImages[0] ?? {};
-      return {
-        ...p,
-        threeModelId: p.threeModelId ?? undefined,
-        status: p.status as ProductStatus,
-        updatedAt: p.updatedAt ?? undefined,
-        category: {
-          ...category,
-          description: category.description ?? '',
-          parentId: category.parentId ? toCategoryId(category.parentId) : undefined,
-          updatedAt: category.updatedAt ?? undefined,
-        },
-        image: image
-          ? {
-              ...image,
-              remoteKey: image.remoteKey ?? undefined,
-              provider: image.provider ?? undefined,
-              metadata: image.metadata ?? undefined,
-              updatedAt: image.updatedAt ?? undefined,
-              status: image.status as ImageStatus,
-              isPrimary: isPrimary ?? false,
-            }
-          : null,
-      };
-    });
-
     return {
-      data,
+      data: products.map(ProductMapper.toResponseWithSingleImage),
       pagination: {
         page,
         limit,

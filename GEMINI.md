@@ -76,7 +76,7 @@ test/
 ## Code style
 
 - Prefer `const` over `let`.
-- Don't use `any` type. Safety first.
+- Don't use `any` type. Safety first. If it's unavoidable, add biome suppression.
 - Code line width is 120 characters.
 - Always use semicolon.
 - Always use HTTP Exception from `~/application/exceptions`.
@@ -84,6 +84,7 @@ test/
 - If depends is class for NestJS DI or ValidationPipe, please use `import` keyword, not `import type`. 
 - Suppress `lint/style/useImportType` for NestJS DI and ValidationPipe dependencies.
 - Do not prefix interface names with "I" (e.g., use `ProductRepository` instead of `IProductRepository`).
+- All these imports are only used as types.
 
 ## Database design
 

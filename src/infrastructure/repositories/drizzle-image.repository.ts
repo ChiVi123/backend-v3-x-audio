@@ -1,7 +1,8 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { eq, inArray } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { InternalServerErrorException } from '~/application/exceptions/internal-server-error.exception';
+import { ImageMapper } from '~/application/mappers/image.mapper';
 import type {
   CreateImageInput,
   ImageRepository,
@@ -9,10 +10,10 @@ import type {
   UpdateManyImageInput,
 } from '~/application/repositories/image.repository';
 import type { ImageEntity } from '~/domain/entities/image.entity';
-import type { ImageStatus } from '~/domain/enums/image.enum';
-import { type ImageId, toImageId } from '~/domain/types/branded.type';
+import type { ImageId } from '~/domain/types/branded.type';
 import { DRIZZLE_TOKEN } from '~/infrastructure/constants/drizzle';
 import type { DrizzleSchema } from '~/infrastructure/database/drizzle';
+import { IMAGE_COLUMNS } from '~/infrastructure/database/drizzle/constants/columns';
 import { imageTable } from '~/infrastructure/database/drizzle/schema';
 
 @Injectable()
@@ -25,30 +26,10 @@ export class DrizzleImageRepository implements ImageRepository {
     }
     const results = await this.db.query.imageTable.findMany({
       where: (t) => inArray(t.id, ids),
-      columns: {
-        id: true,
-        url: true,
-        alt: true,
-        remoteKey: true,
-        provider: true,
-        metadata: true,
-        status: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+      columns: IMAGE_COLUMNS,
     });
 
-    return results.map((item) => ({
-      id: toImageId(item.id),
-      remoteKey: item.remoteKey ?? undefined,
-      url: item.url,
-      alt: item.alt,
-      provider: item.provider ?? undefined,
-      metadata: item.metadata ?? undefined,
-      status: item.status as ImageStatus,
-      createdAt: item.createdAt,
-      updatedAt: item.updatedAt ?? undefined,
-    }));
+    return results.map(ImageMapper.toDomain);
   }
 
   async create(image: CreateImageInput): Promise<ImageEntity> {
@@ -56,18 +37,7 @@ export class DrizzleImageRepository implements ImageRepository {
     if (!result[0]) {
       throw new InternalServerErrorException('Failed to create image');
     }
-    const { remoteKey, url, alt, provider, metadata, status, createdAt, updatedAt } = result[0];
-    return {
-      id: toImageId(result[0].id),
-      remoteKey: remoteKey ?? undefined,
-      url,
-      alt,
-      provider: provider ?? undefined,
-      metadata: metadata ?? undefined,
-      status: status as ImageStatus,
-      createdAt,
-      updatedAt: updatedAt ?? undefined,
-    };
+    return ImageMapper.toDomain(result[0]);
   }
 
   async createMany(images: CreateImageInput[]): Promise<ImageEntity[]> {
@@ -76,17 +46,7 @@ export class DrizzleImageRepository implements ImageRepository {
     }
 
     const results = await this.db.insert(imageTable).values(images).returning();
-    return results.map((item) => ({
-      id: toImageId(item.id),
-      remoteKey: item.remoteKey ?? undefined,
-      url: item.url,
-      alt: item.alt,
-      provider: item.provider ?? undefined,
-      metadata: item.metadata ?? undefined,
-      status: item.status as ImageStatus,
-      createdAt: item.createdAt,
-      updatedAt: item.updatedAt ?? undefined,
-    }));
+    return results.map(ImageMapper.toDomain);
   }
 
   async update(id: ImageId, image: UpdateImageInput): Promise<ImageEntity> {
@@ -94,18 +54,7 @@ export class DrizzleImageRepository implements ImageRepository {
     if (!result[0]) {
       throw new InternalServerErrorException('Failed to update image');
     }
-    const { remoteKey, url, alt, provider, metadata, status, createdAt, updatedAt } = result[0];
-    return {
-      id: toImageId(result[0].id),
-      remoteKey: remoteKey ?? undefined,
-      url,
-      alt,
-      provider: provider ?? undefined,
-      metadata: metadata ?? undefined,
-      status: status as ImageStatus,
-      createdAt,
-      updatedAt: updatedAt ?? undefined,
-    };
+    return ImageMapper.toDomain(result[0]);
   }
 
   async updateMany(images: UpdateManyImageInput[]): Promise<ImageEntity[]> {
@@ -121,17 +70,7 @@ export class DrizzleImageRepository implements ImageRepository {
       return updateResults.flat();
     });
 
-    return results.map((item) => ({
-      id: toImageId(item.id),
-      remoteKey: item.remoteKey ?? undefined,
-      url: item.url,
-      alt: item.alt,
-      provider: item.provider ?? undefined,
-      metadata: item.metadata ?? undefined,
-      status: item.status as ImageStatus,
-      createdAt: item.createdAt,
-      updatedAt: item.updatedAt ?? undefined,
-    }));
+    return results.map(ImageMapper.toDomain);
   }
 
   async delete(id: ImageId): Promise<void> {
