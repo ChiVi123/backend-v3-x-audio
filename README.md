@@ -33,7 +33,7 @@ src/
 │   ├── services/       # Service interfaces (abstractions)
 │   └── types/          # Branded types (ProductId, Ohm, Hertz, Usd, ...)
 │
-├── applications/       # Application layer (use-cases, DTOs)
+├── application/       # Application layer (use-cases, DTOs)
 │   ├── use-cases/      # Business logic: create/update product, login, register
 │   └── dtos/           # Data Transfer Objects với validation
 │
