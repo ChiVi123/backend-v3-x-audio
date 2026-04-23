@@ -2,6 +2,7 @@ import { Logger, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { GlobalExceptionsFilter } from '~/config/global-exception.filter';
+import { ResponseInterceptor } from '~/presentation/interceptors/response.interceptor';
 import { AppModule } from './app.module';
 import type { EnvironmentVariables } from './config/env.validation';
 
@@ -19,6 +20,7 @@ async function bootstrap() {
     }),
   );
   app.useGlobalFilters(new GlobalExceptionsFilter());
+  app.useGlobalInterceptors(new ResponseInterceptor());
   await app.listen(port);
 
   Logger.log(`Environment: ${config.get('NODE_ENV', { infer: true })}`, 'Bootstrap');

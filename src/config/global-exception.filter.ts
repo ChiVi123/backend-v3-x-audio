@@ -26,12 +26,9 @@ export class GlobalExceptionsFilter implements ExceptionFilter {
     Logger.error(exception, 'Global Exception Filter');
 
     response.status(status).json({
-      success: false,
-      error: {
-        code: code,
-        message: Array.isArray(message) ? message[0] : message,
-        timestamp: new Date().toISOString(),
-      },
+      statusCode: status,
+      message: status >= 500 ? 'Internal Server Error' : (Array.isArray(message) ? message[0] : message),
+      error: status >= 500 ? 'System error' : code,
     });
   }
 }
