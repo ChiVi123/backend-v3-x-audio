@@ -15,4 +15,11 @@ export const ImageMapper = {
     createdAt: raw.createdAt,
     updatedAt: raw.updatedAt ?? undefined,
   }),
+  toResponse: (entity: ImageEntity) => ({
+    id: entity.id,
+    url: entity.url,
+    alt: entity.alt,
+    createdAt: entity.createdAt,
+    updatedAt: entity.updatedAt,
+  }),
 } as const;

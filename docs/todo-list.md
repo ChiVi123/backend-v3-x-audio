@@ -24,10 +24,10 @@
 - [x] Ensure `UserRepository` implements `existsByEmail` and `existsById` methods.
 
 ## Authentication and Security
-- [ ] Implement JWT-based authentication (Access and Refresh tokens).
-- [ ] Implement password hashing using `bcrypt`.
-- [ ] Ensure that sensitive data (`passwordHash`, `refreshTokenHash`) is never sent to the client in any controller response.
+- [x] Implement JWT-based authentication (Access and Refresh tokens).
+- [x] Implement password hashing using `bcrypt`.
+- [x] Ensure that sensitive data (`passwordHash`, `refreshTokenHash`) is never sent to the client in any controller response.
 
 ## Authorization (RBAC)
-- [ ] Implement `RolesGuard` and `@Roles` decorator for role-based access control.
-- [ ] Implement use cases: `RegisterUserUseCase`, `LoginUserUseCase`, `GetMeUseCase`.
+- [x] Implement `RolesGuard` and `@Roles` decorator for role-based access control.
+- [x] Implement use cases: `RegisterUserUseCase`, `LoginUserUseCase`, `GetMeUseCase`.
