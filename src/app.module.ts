@@ -1,29 +1,26 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from '~/app.controller';
 import { AppService } from '~/app.service';
-import { AuthModule } from '~/infrastructure/auth/auth.module';
-import { DatabaseModule } from '~/infrastructure/database/drizzle.module';
-import { MediaModule } from '~/infrastructure/services/media/media.module';
-import { ImageGarbageCollector } from '~/infrastructure/tasks/image-garbage-collector.service';
-import { validate } from '~/infrastructure/validations/env.validation';
-import { ProductModule } from '~/presentation/product.module';
+import { validateEnv } from '~/config/env.validation';
+import { DatabaseModule } from '~/infrastructure/database/database.module';
+import { ServiceModule } from '~/infrastructure/services/service.module';
+import { AuthModule } from '~/presentation/controllers/auth.module';
+import { ProductModule } from '~/presentation/controllers/product.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
-      envFilePath: [`.env.${process.env.NODE_ENV}.local`, '.env.local', '.env'],
+      envFilePath: ['.env', '.env.test.local'],
+      validate: validateEnv,
       isGlobal: true,
-      validate,
     }),
-    ProductModule,
+    ServiceModule,
     DatabaseModule,
-    MediaModule,
-    ScheduleModule.forRoot(),
+    ProductModule,
     AuthModule,
   ],
   controllers: [AppController],
-  providers: [AppService, ImageGarbageCollector],
+  providers: [AppService],
 })
 export class AppModule {}

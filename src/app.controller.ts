@@ -1,6 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
-// biome-ignore lint/style/useImportType: NestJS requires importing the class itself, not just its type
-import { AppService } from '~/app.service';
+import { AppService } from './app.service';
 
 @Controller()
 export class AppController {

@@ -1,11 +1,11 @@
+import { Logger } from '@nestjs/common';
 import { defineConfig } from 'drizzle-kit';
 
-console.log('[Drizzle Config] DATABASE_URL:', process.env.DATABASE_URL);
+Logger.log(process.env.DATABASE_URL, 'Drizzle Config');
 
 export default defineConfig({
-  schema: ['./src/infrastructure/database/schemas/*.schema.ts'],
-  out: './drizzle',
   dialect: 'postgresql',
+  schema: './src/infrastructure/database/drizzle/schema/*.schema.ts',
   dbCredentials: {
     url: process.env.DATABASE_URL ?? '',
   },

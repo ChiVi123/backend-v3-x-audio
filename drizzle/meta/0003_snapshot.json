@@ -1,6 +1,6 @@
 {
-  "id": "c162f0eb-a88d-4110-947d-13a1ee699624",
-  "prevId": "6890f138-dc18-492c-8ab1-d84d448e80db",
+  "id": "98094623-4ee3-4d0c-aaea-86b286abb962",
+  "prevId": "150630aa-c8c1-43d8-9fd7-3163d3dfca54",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -12,8 +12,7 @@
           "name": "id",
           "type": "uuid",
           "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
+          "notNull": true
         },
         "name": {
           "name": "name",
@@ -27,15 +26,22 @@
           "primaryKey": false,
           "notNull": true
         },
-        "parent_id": {
-          "name": "parent_id",
-          "type": "uuid",
+        "product_count": {
+          "name": "product_count",
+          "type": "integer",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true,
+          "default": 0
         },
         "description": {
           "name": "description",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "parent_id": {
+          "name": "parent_id",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": false
         },
@@ -50,8 +56,7 @@
           "name": "updated_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
+          "notNull": false
         }
       },
       "indexes": {},
@@ -72,6 +77,13 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
+        "category_name_unique": {
+          "name": "category_name_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "name"
+          ]
+        },
         "category_slug_unique": {
           "name": "category_slug_unique",
           "nullsNotDistinct": false,
@@ -92,23 +104,28 @@
           "name": "id",
           "type": "uuid",
           "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "public_id": {
-          "name": "public_id",
-          "type": "varchar(255)",
-          "primaryKey": false,
           "notNull": true
         },
         "url": {
           "name": "url",
-          "type": "text",
+          "type": "varchar(255)",
           "primaryKey": false,
           "notNull": true
         },
-        "alt_text": {
-          "name": "alt_text",
+        "alt": {
+          "name": "alt",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "remote_key": {
+          "name": "remote_key",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "provider": {
+          "name": "provider",
           "type": "varchar(255)",
           "primaryKey": false,
           "notNull": false
@@ -118,6 +135,14 @@
           "type": "jsonb",
           "primaryKey": false,
           "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "image_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
         },
         "created_at": {
           "name": "created_at",
@@ -130,22 +155,13 @@
           "name": "updated_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
+          "notNull": false
         }
       },
       "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "image_public_id_unique": {
-          "name": "image_public_id_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "public_id"
-          ]
-        }
-      },
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -186,7 +202,7 @@
             }
           ],
           "isUnique": true,
-          "where": "is_primary = true",
+          "where": "is_primary=true",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -312,7 +328,7 @@
           "type": "boolean",
           "primaryKey": false,
           "notNull": true,
-          "default": true
+          "default": false
         },
         "created_at": {
           "name": "created_at",
@@ -325,8 +341,7 @@
           "name": "updated_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
+          "notNull": false
         }
       },
       "indexes": {},
@@ -358,217 +373,18 @@
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
-    },
-    "public.role": {
-      "name": "role",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "name": {
-          "name": "name",
-          "type": "varchar(50)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "description": {
-          "name": "description",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "role_name_unique": {
-          "name": "role_name_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "name"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.user_role": {
-      "name": "user_role",
-      "schema": "",
-      "columns": {
-        "user_id": {
-          "name": "user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "role_id": {
-          "name": "role_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "user_role_user_id_user_id_fk": {
-          "name": "user_role_user_id_user_id_fk",
-          "tableFrom": "user_role",
-          "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "user_role_role_id_role_id_fk": {
-          "name": "user_role_role_id_role_id_fk",
-          "tableFrom": "user_role",
-          "tableTo": "role",
-          "columnsFrom": [
-            "role_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "user_role_user_id_role_id_pk": {
-          "name": "user_role_user_id_role_id_pk",
-          "columns": [
-            "user_id",
-            "role_id"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.user": {
-      "name": "user",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "email": {
-          "name": "email",
-          "type": "varchar(255)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "password_hash": {
-          "name": "password_hash",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "full_name": {
-          "name": "full_name",
-          "type": "varchar(255)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "avatar_image_id": {
-          "name": "avatar_image_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "refresh_token_hash": {
-          "name": "refresh_token_hash",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "status": {
-          "name": "status",
-          "type": "user_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'active'"
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "user_avatar_image_id_image_id_fk": {
-          "name": "user_avatar_image_id_image_id_fk",
-          "tableFrom": "user",
-          "tableTo": "image",
-          "columnsFrom": [
-            "avatar_image_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "user_email_unique": {
-          "name": "user_email_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "email"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
     }
   },
   "enums": {
+    "public.image_status": {
+      "name": "image_status",
+      "schema": "public",
+      "values": [
+        "pending",
+        "uploaded",
+        "error"
+      ]
+    },
     "public.product_status": {
       "name": "product_status",
       "schema": "public",
@@ -576,15 +392,6 @@
         "draft",
         "live",
         "archived"
-      ]
-    },
-    "public.user_status": {
-      "name": "user_status",
-      "schema": "public",
-      "values": [
-        "active",
-        "inactive",
-        "blocked"
       ]
     }
   },

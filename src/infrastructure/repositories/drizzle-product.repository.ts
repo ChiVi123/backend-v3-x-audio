@@ -1,85 +1,186 @@
-import { ConflictException, Inject, Injectable } from '@nestjs/common';
-import { and, eq, inArray, sql } from 'drizzle-orm';
-// biome-ignore lint/style/useImportType: NestJS requires importing the class itself, not just its type
-import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import type { ProductStatus, ProductWithArrayImage, ProductWithSingleImage } from '~/core/entities/product.entity';
-import type { ProductRepository, SaveProductInput, UpdateProductInput } from '~/core/repositories/product.repository';
-import { type CategoryId, type ImageId, type ProductId, toCategoryId, toImageId } from '~/core/types/branded.type';
-import { DRIZZLE_TOKEN } from '~/infrastructure/constants/provider-tokens';
-import { isUniqueViolation } from '~/infrastructure/database/database.utils';
-import type { DrizzleDB } from '~/infrastructure/database/drizzle.provider';
-import { imageTable, productImageTable, productTable } from '~/infrastructure/database/schemas';
-import type { DrizzleTX } from '~/infrastructure/types/drizzle.type';
+import { Inject, Injectable } from '@nestjs/common';
+import { count, eq, sql } from 'drizzle-orm';
+import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import { BadRequestException } from '~/application/exceptions/bad-request.exception';
+import { InternalServerErrorException } from '~/application/exceptions/internal-server-error.exception';
+import { ProductMapper } from '~/application/mappers/product.mapper';
+import type {
+  CreateProductInput,
+  ProductRepository,
+  ProductWithCategoryAndMultipleImages,
+  ProductWithCategoryAndSingleImage,
+  UpdateProductInput,
+} from '~/application/repositories/product.repository';
+import type { PaginatedResult } from '~/application/types/pagination.type';
+import type { ProductId } from '~/domain/types/branded.type';
+import { DRIZZLE_TOKEN } from '~/infrastructure/constants/drizzle';
+import type { DrizzleSchema } from '~/infrastructure/database/drizzle';
+import { CATEGORY_COLUMNS, IMAGE_COLUMNS, PRODUCT_COLUMNS } from '~/infrastructure/database/drizzle/constants/columns';
+import { productImageTable, productTable } from '~/infrastructure/database/drizzle/schema';
+
+const ONE_PRIMARY_IMAGE = 1;
 
 @Injectable()
 export class DrizzleProductRepository implements ProductRepository {
-  constructor(@Inject(DRIZZLE_TOKEN) private readonly db: NodePgDatabase<DrizzleDB>) {}
+  constructor(@Inject(DRIZZLE_TOKEN) private readonly db: NodePgDatabase<DrizzleSchema>) {}
 
-  async findById(id: ProductId): Promise<ProductWithArrayImage | null> {
-    const rows = await this.db
-      .select({
-        product: productTable,
-        image: imageTable,
-        isPrimary: productImageTable.isPrimary,
-      })
-      .from(productTable)
-      .leftJoin(productImageTable, eq(productTable.id, productImageTable.productId))
-      .leftJoin(imageTable, eq(productImageTable.imageId, imageTable.id))
-      .where(eq(productTable.id, id));
+  async create(input: CreateProductInput): Promise<ProductWithCategoryAndMultipleImages> {
+    const { images, ...product } = input;
+    const result = await this.db.transaction(async (tx) => {
+      const inserted = await tx.insert(productTable).values(product).returning();
+      const productId = inserted[0].id;
 
-    if (rows.length === 0) return null;
+      if (images.length > 0) {
+        await tx
+          .insert(productImageTable)
+          .values(
+            images.map((image) => ({
+              productId: productId,
+              imageId: image.id,
+              isPrimary: image.isPrimary,
+            })),
+          )
+          .onConflictDoUpdate({
+            target: [productImageTable.productId, productImageTable.imageId],
+            set: { isPrimary: sql`excluded.is_primary` },
+          });
+      }
 
-    const productInfo = rows[0].product;
+      const createdProduct = await this.findById(productId, tx as any);
+      if (!createdProduct) {
+        throw new InternalServerErrorException('Failed to create product');
+      }
+      return createdProduct;
+    });
 
-    const images = rows
-      .filter((row) => row.image !== null)
-      .map((row) => ({
-        ...row.image!,
-        isPrimary: row.isPrimary,
-      }));
-
-    return {
-      ...productInfo,
-      categoryId: toCategoryId(productInfo.categoryId),
-      threeModelId: productInfo.threeModelId ?? undefined,
-      status: productInfo.status as ProductStatus,
-      images,
-    };
+    return result;
   }
 
-  async findAll(params: {
-    categoryId?: CategoryId;
-    limit?: number;
-    offset?: number;
-  }): Promise<ProductWithSingleImage[]> {
-    const { categoryId, limit = 10, offset = 0 } = params;
+  async update(
+    id: ProductId,
+    { keepImages, ...product }: UpdateProductInput,
+  ): Promise<ProductWithCategoryAndMultipleImages> {
+    return this.db.transaction(async (tx) => {
+      if (Object.keys(product).length > 0) {
+        await tx.update(productTable).set(product).where(eq(productTable.id, id));
+      }
 
-    const query = this.db
-      .select({
-        product: productTable,
-        image: imageTable,
-      })
-      .from(productTable)
-      .leftJoin(
-        productImageTable,
-        and(eq(productTable.id, productImageTable.productId), eq(productImageTable.isPrimary, true)),
-      )
-      .leftJoin(imageTable, eq(productImageTable.imageId, imageTable.id))
-      .where(categoryId ? eq(productTable.categoryId, categoryId) : undefined)
-      .limit(limit)
-      .offset(offset);
+      if (keepImages && keepImages.length > 0) {
+        const primaryCount = keepImages.filter((img) => img.isPrimary === true).length;
 
-    const rows = await query;
+        if (primaryCount > ONE_PRIMARY_IMAGE) {
+          throw new BadRequestException('Only one primary image is allowed');
+        }
 
-    return rows.map((row) => ({
-      ...row.product,
-      image: row.image
-        ? {
-            ...row.image,
-            isPrimary: true,
-          }
-        : null,
-    })) as ProductWithSingleImage[];
+        if (primaryCount === ONE_PRIMARY_IMAGE) {
+          await tx.update(productImageTable).set({ isPrimary: false }).where(eq(productImageTable.productId, id));
+        }
+
+        await tx
+          .insert(productImageTable)
+          .values(
+            keepImages.map((image) => ({
+              productId: id,
+              imageId: image.id,
+              isPrimary: image.isPrimary ?? false,
+            })),
+          )
+          .onConflictDoUpdate({
+            target: [productImageTable.productId, productImageTable.imageId],
+            set: { isPrimary: sql`excluded.is_primary` },
+          });
+      }
+
+      const updatedProduct = await tx.query.productTable.findFirst({
+        where: (p) => eq(p.id, id),
+        columns: PRODUCT_COLUMNS,
+        with: {
+          category: { columns: CATEGORY_COLUMNS },
+          productImages: {
+            with: {
+              image: { columns: IMAGE_COLUMNS },
+            },
+          },
+        },
+      });
+
+      if (!updatedProduct) {
+        throw new InternalServerErrorException('Failed to retrieve updated product');
+      }
+
+      return ProductMapper.toResponseWithMultipleImages(updatedProduct);
+    });
+  }
+
+  delete(id: ProductId): Promise<void> {
+    throw new Error('Method not implemented.');
+  }
+
+  async getRawById(id: ProductId): Promise<{ name: string } | null> {
+    const product = await this.db.query.productTable.findFirst({
+      where: (p) => eq(p.id, id),
+      columns: {
+        name: true,
+      },
+    });
+    return product ?? null;
+  }
+
+  async findById(
+    id: ProductId,
+    db: NodePgDatabase<DrizzleSchema> = this.db,
+  ): Promise<ProductWithCategoryAndMultipleImages | null> {
+    const product = await db.query.productTable.findFirst({
+      where: (p) => eq(p.id, id),
+      columns: PRODUCT_COLUMNS,
+      with: {
+        category: { columns: CATEGORY_COLUMNS },
+        productImages: {
+          with: {
+            image: { columns: IMAGE_COLUMNS },
+          },
+        },
+      },
+    });
+
+    if (!product) {
+      return null;
+    }
+
+    return ProductMapper.toResponseWithMultipleImages(product);
+  }
+
+  async findAll(page: number, limit: number): Promise<PaginatedResult<ProductWithCategoryAndSingleImage>> {
+    const offset = (page - 1) * limit;
+
+    const [totalResult] = await this.db.select({ value: count() }).from(productTable);
+    const total = Number(totalResult.value);
+
+    const products = await this.db.query.productTable.findMany({
+      limit: limit,
+      offset: offset,
+      columns: PRODUCT_COLUMNS,
+      with: {
+        category: { columns: CATEGORY_COLUMNS },
+        productImages: {
+          where: (pi) => eq(pi.isPrimary, true),
+          limit: 1,
+          with: {
+            image: { columns: IMAGE_COLUMNS },
+          },
+        },
+      },
+    });
+
+    return {
+      data: products.map(ProductMapper.toResponseWithSingleImage),
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   async existsByName(name: string): Promise<boolean> {
@@ -91,142 +192,12 @@ export class DrizzleProductRepository implements ProductRepository {
     return result.rows[0].exists;
   }
 
-  async save(input: SaveProductInput): Promise<ProductWithArrayImage> {
-    const { images, ...productData } = input;
+  async existsById(id: ProductId): Promise<boolean> {
+    const query = sql`SELECT EXISTS (
+      SELECT 1 FROM ${productTable} WHERE ${productTable.id} = ${id}
+    )`;
 
-    try {
-      await this.db.transaction(async (tx) => {
-        await tx.insert(productTable).values(productData);
-
-        if (images && images.length > 0) {
-          await this.handleInsertImages(tx, input.id, images);
-        }
-      });
-    } catch (error) {
-      if (isUniqueViolation(error)) {
-        throw new ConflictException('Product with this name or slug already exists');
-      }
-      throw error;
-    }
-
-    const result = await this.findById(input.id);
-    if (!result) throw new Error('Failed to retrieve product after save');
-    return result;
-  }
-
-  async update(id: ProductId, input: UpdateProductInput): Promise<ProductWithArrayImage> {
-    const { keepImages, newImages, deleteImageIds, ...productFields } = input;
-
-    try {
-      await this.db.transaction(async (tx) => {
-        const hasRealNewImages = newImages?.some((img) => img.url !== 'pending');
-        if (hasRealNewImages) {
-          await this.handleDeletePendingImages(tx, id);
-        }
-
-        if (Object.keys(productFields).length > 0) {
-          await tx.update(productTable).set(productFields).where(eq(productTable.id, id));
-        }
-
-        // Delete images
-        if (deleteImageIds && deleteImageIds.length > 0) {
-          await this.handleDeleteImages(tx, deleteImageIds);
-        }
-
-        // Update isPrimary for existing images
-        if (keepImages && keepImages.length > 0) {
-          await this.handleUpdateExistingImages(tx, id, keepImages);
-        }
-
-        // Add new images
-        if (newImages && newImages.length > 0) {
-          await this.handleInsertImages(tx, id, newImages);
-        }
-      });
-    } catch (error) {
-      if (isUniqueViolation(error)) {
-        throw new ConflictException('Product with this name or slug already exists');
-      }
-      throw error;
-    }
-
-    const result = await this.findById(id);
-    if (!result) throw new Error('Product not found after update');
-    return result;
-  }
-
-  async delete(id: ProductId): Promise<void> {
-    await this.db.delete(productTable).where(eq(productTable.id, id));
-  }
-
-  // --- Private Helper Methods ---
-
-  /**
-   * Handle insert new images into imageTable and set up relationship in productImageTable
-   */
-  private async handleInsertImages(tx: DrizzleTX, productId: ProductId, images: SaveProductInput['images']) {
-    for (const img of images) {
-      const newImageId = toImageId(crypto.randomUUID());
-
-      await tx.insert(imageTable).values({
-        id: newImageId,
-        url: img.url,
-        publicId: img.publicId,
-        metadata: img.metadata,
-      });
-
-      await tx.insert(productImageTable).values({
-        productId,
-        imageId: newImageId,
-        isPrimary: img.isPrimary,
-      });
-    }
-  }
-
-  /**
-   * Handle delete images from imageTable (productImageTable will be deleted automatically thanks to cascade)
-   */
-  private async handleDeleteImages(tx: DrizzleTX, imageIds: ImageId[]) {
-    const imagesToDelete = await tx
-      .select({ publicId: imageTable.publicId })
-      .from(imageTable)
-      .where(inArray(imageTable.id, imageIds));
-
-    await tx.delete(imageTable).where(inArray(imageTable.id, imageIds));
-
-    return imagesToDelete.map((img) => img.publicId);
-  }
-
-  /**
-   * Update meta-data (like isPrimary) for existing image relationships
-   */
-  private async handleUpdateExistingImages(
-    tx: DrizzleTX,
-    productId: ProductId,
-    keepImages: NonNullable<UpdateProductInput['keepImages']>,
-  ) {
-    for (const img of keepImages) {
-      await tx
-        .update(productImageTable)
-        .set({ isPrimary: img.isPrimary })
-        .where(and(eq(productImageTable.productId, productId), eq(productImageTable.imageId, img.id)));
-    }
-  }
-
-  /**
-   * Find and delete pending images of a product
-   */
-  private async handleDeletePendingImages(tx: DrizzleTX, productId: ProductId) {
-    // Get list of imageId that are "pending" of this product
-    const pendingImages = await tx
-      .select({ id: imageTable.id })
-      .from(imageTable)
-      .innerJoin(productImageTable, eq(imageTable.id, productImageTable.imageId))
-      .where(and(eq(productImageTable.productId, productId), eq(imageTable.url, 'pending')));
-
-    if (pendingImages.length > 0) {
-      const idsToDelete = pendingImages.map((img) => img.id);
-      await tx.delete(imageTable).where(inArray(imageTable.id, idsToDelete));
-    }
+    const result = await this.db.execute<{ exists: boolean }>(query);
+    return result.rows[0].exists;
   }
 }
