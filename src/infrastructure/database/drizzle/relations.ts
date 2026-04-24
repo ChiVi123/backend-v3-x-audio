@@ -1,5 +1,13 @@
 import { relations } from 'drizzle-orm';
-import { categoryTable, imageTable, productImageTable, productTable } from '~/infrastructure/database/drizzle/schema';
+import {
+  categoryTable,
+  imageTable,
+  productImageTable,
+  productTable,
+  roleTable,
+  userTable,
+  userToRoleTable,
+} from '~/infrastructure/database/drizzle/schema';
 
 export const categoryRelations = relations(categoryTable, ({ one, many }) => ({
   products: many(productTable),
@@ -15,6 +23,7 @@ export const categoryRelations = relations(categoryTable, ({ one, many }) => ({
 
 export const imageRelations = relations(imageTable, ({ many }) => ({
   productImages: many(productImageTable),
+  users: many(userTable),
 }));
 
 export const productRelations = relations(productTable, ({ one, many }) => ({
@@ -33,5 +42,28 @@ export const productImageRelations = relations(productImageTable, ({ one }) => (
   image: one(imageTable, {
     fields: [productImageTable.imageId],
     references: [imageTable.id],
+  }),
+}));
+
+export const userRelations = relations(userTable, ({ one, many }) => ({
+  avatar: one(imageTable, {
+    fields: [userTable.avatarId],
+    references: [imageTable.id],
+  }),
+  userToRoles: many(userToRoleTable),
+}));
+
+export const roleRelations = relations(roleTable, ({ many }) => ({
+  userToRoles: many(userToRoleTable),
+}));
+
+export const userToRoleRelations = relations(userToRoleTable, ({ one }) => ({
+  user: one(userTable, {
+    fields: [userToRoleTable.userId],
+    references: [userTable.id],
+  }),
+  role: one(roleTable, {
+    fields: [userToRoleTable.roleId],
+    references: [roleTable.id],
   }),
 }));

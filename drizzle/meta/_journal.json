@@ -36,6 +36,13 @@
       "when": 1776399550672,
       "tag": "0004_windy_vampiro",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1776995907737,
+      "tag": "0005_chilly_patch",
+      "breakpoints": true
     }
   ]
 }

@@ -16,3 +16,18 @@
 
 ## Project Structure and Tech Stack
 - [x] Verify if there are any other hardcoded references to `applications` (plural) in scripts or configs and update them to `application`.
+
+# User Management and Authentication [2026-04-23] [Pending]
+
+## Database and Entity Design
+- [x] Create Drizzle schemas for `user`, `role`, and `user_to_role`.
+- [x] Ensure `UserRepository` implements `existsByEmail` and `existsById` methods.
+
+## Authentication and Security
+- [ ] Implement JWT-based authentication (Access and Refresh tokens).
+- [ ] Implement password hashing using `bcrypt`.
+- [ ] Ensure that sensitive data (`passwordHash`, `refreshTokenHash`) is never sent to the client in any controller response.
+
+## Authorization (RBAC)
+- [ ] Implement `RolesGuard` and `@Roles` decorator for role-based access control.
+- [ ] Implement use cases: `RegisterUserUseCase`, `LoginUserUseCase`, `GetMeUseCase`.
